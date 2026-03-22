@@ -1,0 +1,71 @@
+{
+  "name": "@hangxingliu/common-utils",
+  "version": "2.11.2",
+  "type": "module",
+  "license": "MIT",
+  "main": "cjs/index.js",
+  "module": "esm/index.js",
+  "types": "cjs/index.d.ts",
+  "files": [
+    "src",
+    "cjs",
+    "esm",
+    "!**/*.spec.{ts,js}",
+    "!**/*.tsbuildinfo"
+  ],
+  "exports": {
+    "./cjs/*.js": {
+      "require": "./cjs/*.js",
+      "import": "./esm/*.js",
+      "types": "./cjs/*.d.ts"
+    },
+    "./esm/*.js": {
+      "require": "./cjs/*.js",
+      "import": "./esm/*.js",
+      "types": "./cjs/*.d.ts"
+    },
+    "./src/*.js": {
+      "require": "./cjs/*.js",
+      "import": "./esm/*.js",
+      "types": "./cjs/*.d.ts"
+    },
+    ".": {
+      "require": "./cjs/index.js",
+      "import": "./esm/index.js",
+      "types": "./cjs/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "build:all": "tsc -b tsconfig.cjs.json tsconfig.json",
+    "watch": "tsc -b tsconfig.json --watch",
+    "start": "tsc -b tsconfig.json && node esm",
+    "clean": "rimraf --glob cjs esm '*.tsbuildinfo'",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.19.7",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "eslint": "^9.39.2",
+    "mocha": "11.7.5",
+    "rimraf": "^6.1.2",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "ajv": "^8",
+    "ajv-formats": "^3"
+  },
+  "peerDependenciesMeta": {
+    "ajv": {
+      "optional": true
+    },
+    "ajv-formats": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
