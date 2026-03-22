@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node10",
+    "declaration": true,
+    "removeComments": false,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": false,
+    "allowJs": true,
+    "incremental": true,
+    "rootDir": "./src",
+    "outDir": "cjs",
+    "strict": true
+  },
+  "exclude": [
+    "src/**/*.mts",
+    "src/**/*.spec.*"
+  ],
+  "include": [
+    "src"
+  ]
+}

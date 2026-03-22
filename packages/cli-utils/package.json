@@ -1,0 +1,67 @@
+{
+  "name": "@hangxingliu/cli-utils",
+  "version": "5.1.0",
+  "type": "module",
+  "license": "MIT",
+  "main": "cjs/index.js",
+  "module": "esm/index.js",
+  "types": "cjs/index.d.ts",
+  "files": [
+    "src",
+    "cjs",
+    "esm",
+    "!**/*.spec.{ts,js}",
+    "!**/*.tsbuildinfo"
+  ],
+  "exports": {
+    "./cjs/*.js": {
+      "require": "./cjs/*.js",
+      "import": "./esm/*.js",
+      "types": "./cjs/*.d.ts"
+    },
+    "./esm/*.js": {
+      "require": "./cjs/*.js",
+      "import": "./esm/*.js",
+      "types": "./cjs/*.d.ts"
+    },
+    "./src/*.js": {
+      "require": "./cjs/*.js",
+      "import": "./esm/*.js",
+      "types": "./cjs/*.d.ts"
+    },
+    ".": {
+      "require": "./cjs/index.js",
+      "import": "./esm/index.js",
+      "types": "./cjs/index.d.ts"
+    }
+  },
+  "scripts": {
+    "gen": "node scripts/gen-color-256.mjs --no-ui",
+    "build": "yarn gen && tsc -b tsconfig.json",
+    "build:all": "yarn gen && tsc -b tsconfig.cjs.json tsconfig.json",
+    "watch": "tsc -b tsconfig.json --watch",
+    "start": "tsc -b tsconfig.json && node esm",
+    "clean": "rimraf --glob cjs esm '*.tsbuildinfo'",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.19.7",
+    "eslint": "^9.39.2",
+    "mocha": "11.7.5",
+    "prettier": "^3.8.1",
+    "rimraf": "^6.1.2",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "prettier": "^3"
+  },
+  "peerDependenciesMeta": {
+    "prettier": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
