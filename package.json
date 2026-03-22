@@ -1,0 +1,46 @@
+{
+  "name": "@hangxingliu/libs",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "UNLICENSED",
+  "author": "hangxingliu <hangxingliu@gmail.com>",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "gen": "bun run --filter '*' gen && bun ./scripts/copy-licenses.mjs",
+    "clean": "bun run --filter '*' clean",
+    "build": "bun scripts/link-source-files.mjs && bun run --filter '*' build",
+    "build:all": "bun scripts/link-source-files.mjs && bun run --filter '*' build:all",
+    "lint": "bun run --filter '*' lint",
+    "hook:install": "husky",
+    "hook:remove": "git config --unset core.hooksPath",
+    "hook:check": "git config --list | grep core.hooks",
+    "start": "tsx"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.4.3",
+    "@commitlint/config-conventional": "^20.4.3",
+    "@commitlint/types": "^20.5.0",
+    "@eslint/js": "^9.39.2",
+    "@swc/core": "1.15.11",
+    "@types/fs-extra": "^11.0.4",
+    "@types/glob": "^9.0.0",
+    "@types/node": "^22.19.7",
+    "chokidar": "^4.0.3",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "glob": "^13.0.6",
+    "globals": "^17.4.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.8.1",
+    "rimraf": "^6.1.2",
+    "swc-cli-mux": "^0.7.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0"
+  }
+}

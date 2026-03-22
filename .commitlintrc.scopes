@@ -1,0 +1,13 @@
+#
+# general
+#
+repo
+ci
+
+#
+# packages
+#
+ai-utils
+cli-utils
+common-utils
+template
