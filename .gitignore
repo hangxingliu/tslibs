@@ -25,6 +25,9 @@ out
 
 node_modules
 node_modules.tar
+
+*.tgz
+
 *.log
 *debug.json
 
