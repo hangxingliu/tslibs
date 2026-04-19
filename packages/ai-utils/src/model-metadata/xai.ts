@@ -6,10 +6,61 @@
  *   --------------------------------------------------------------------------------------   */
 import { KnownModelProvider, type ModelMetadata } from "./types.js";
 
+export const LEGACY_GROK_THINKING_LEVELS = {
+  minimal: "low",
+  low: "low",
+  medium: "low",
+  high: "high",
+  max: "high",
+} satisfies ModelMetadata["thinkingLevels"];
+
 /**
  * https://docs.x.ai/docs/models
  */
 export const XAI_MODELS = [
+  {
+    provider: KnownModelProvider.XAI,
+    name: "grok-4.20-multi-agent-latest",
+    prefixes: ["grok-4.20-multi-agent"],
+    //
+    cost1MInputTokens: 2,
+    cost1MOutputTokens: 6,
+    cost1MCachedTokens: 0.2,
+    cost1MCachedTokensWrite: 0,
+    thinkingLevels: {
+      minimal: "low",
+      low: "low",
+      medium: "medium",
+      high: "high",
+      max: "xhigh",
+    },
+    thinkingLevelProps: "reasoning.effort",
+  },
+  {
+    provider: KnownModelProvider.XAI,
+    name: "grok-4.20-non-reasoning-latest",
+    prefixes: ["grok-4.20-non-reasoning", "grok-4.20-0309-non-reasoning"],
+    //
+    cost1MInputTokens: 2,
+    cost1MOutputTokens: 6,
+    cost1MCachedTokens: 0.2,
+    cost1MCachedTokensWrite: 0,
+    thinking: false,
+  },
+  {
+    provider: KnownModelProvider.XAI,
+    name: "grok-4.20-reasoning-latest",
+    prefixes: ["grok-4.20-reasoning", "grok-4.20"],
+    //
+    cost1MInputTokens: 2,
+    cost1MOutputTokens: 6,
+    cost1MCachedTokens: 0.2,
+    cost1MCachedTokensWrite: 0,
+    thinking: "force",
+  },
+  //
+  //
+  //
   {
     provider: KnownModelProvider.XAI,
     name: "grok-4-1-fast-non-reasoning",
@@ -42,6 +93,7 @@ export const XAI_MODELS = [
     cost1MCachedTokens: 0.02,
     cost1MCachedTokensWrite: 0,
     thinking: true,
+    thinkingLevels: LEGACY_GROK_THINKING_LEVELS,
   },
   {
     provider: KnownModelProvider.XAI,
@@ -64,6 +116,7 @@ export const XAI_MODELS = [
     cost1MCachedTokens: 0.75,
     cost1MCachedTokensWrite: 0,
     thinking: true,
+    thinkingLevels: LEGACY_GROK_THINKING_LEVELS,
   },
   {
     provider: KnownModelProvider.XAI,

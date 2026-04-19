@@ -7,11 +7,70 @@
 import { KnownModelProvider, type ModelMetadata } from "./types.js";
 
 /**
+ * https://ai.google.dev/gemini-api/docs/thinking#thinking-levels
+ *
+ * - Thinking Levels: Gemini 3
+ * - Thinking budgets: Gemini 2
+ */
+const GEMINI_3_THINKING_LEVELS = {
+  minimal: "minimal",
+  low: "low",
+  medium: "medium",
+  high: "high",
+  max: "high",
+} satisfies ModelMetadata["thinkingLevels"];
+
+const GEMINI_3_1_PRO_THINKING_LEVELS = {
+  ...GEMINI_3_THINKING_LEVELS,
+  minimal: "low",
+} satisfies ModelMetadata["thinkingLevels"];
+
+/**
  * - https://ai.google.dev/gemini-api/docs/models
  * - https://ai.google.dev/gemini-api/docs/pricing
- * - https://ai.google.dev/gemini-api/docs/thinking#set-budget
  */
 export const GOOGLE_GEMINI_MODELS = [
+  // Gemini 3.1
+  {
+    provider: KnownModelProvider.GOOGLE,
+    name: "gemini-3.1-pro-preview",
+    prefixes: ["gemini-3.1-pro"],
+    //
+    cost1MInputTokens: [
+      { gt: 200_000, price: 4 },
+      { gt: 0, price: 2 },
+    ],
+    cost1MOutputTokens: [
+      { gt: 200_000, price: 18 },
+      { gt: 0, price: 12 },
+    ],
+    cost1MCachedTokens: [
+      { gt: 200_000, price: 0.4 },
+      { gt: 0, price: 0.2 },
+    ],
+    cost1MCachedTokensWrite: 0,
+    maxOutputTokens: 65_536,
+    maxInputTokens: 1_048_576,
+    //
+    thinkingLevels: GEMINI_3_1_PRO_THINKING_LEVELS,
+  },
+  {
+    provider: KnownModelProvider.GOOGLE,
+    name: "gemini-3.1-flash-lite-preview",
+    prefixes: ["gemini-3.1-flash"],
+    //
+    //
+    cost1MInputTokens: 0.25,
+    cost1MOutputTokens: 1.5,
+    cost1MCachedTokens: 0.025,
+    cost1MCachedTokensWrite: 0,
+    maxOutputTokens: 65_536,
+    maxInputTokens: 1_048_576,
+    //
+    thinkingLevels: GEMINI_3_THINKING_LEVELS,
+  },
+  //
+  //
   {
     provider: KnownModelProvider.GOOGLE,
     name: "gemini-3-pro-preview",

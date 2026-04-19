@@ -7,9 +7,37 @@
 import { KnownModelProvider, type ModelMetadata } from "./types.js";
 
 /**
- * https://docs.anthropic.com/en/docs/about-claude/models/overview
+ * - https://docs.anthropic.com/en/docs/about-claude/models/overview
+ * - https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing
  */
 export const ANTHROPIC_MODELS = [
+  {
+    provider: KnownModelProvider.ANTHROPIC,
+    name: "claude-opus-4-7",
+    prefixes: ["claude-opus-4-7", "claude-opus-4-6"],
+    //
+    cost1MInputTokens: 5,
+    cost1MOutputTokens: 25,
+    cost1MCachedTokens: 0.5,
+    cost1MCachedTokensWrite: { shortLife: 6.25, longLife: 10 },
+    maxInputTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    thinking: true,
+  },
+  {
+    provider: KnownModelProvider.ANTHROPIC,
+    name: "claude-sonnet-4-6",
+    prefixes: ["claude-sonnet-4-6"],
+    //
+    cost1MInputTokens: 3,
+    cost1MOutputTokens: 15,
+    cost1MCachedTokens: 0.3,
+    cost1MCachedTokensWrite: { shortLife: 3.75, longLife: 6 },
+    maxInputTokens: 1_000_000,
+    maxOutputTokens: 64_000,
+    thinking: true,
+  },
+  //
   {
     provider: KnownModelProvider.ANTHROPIC,
     name: "claude-opus-4-5-20251101",
