@@ -24,6 +24,8 @@ export enum KnownModelProvider {
   GOOGLE = "google",
 }
 
+export type WellknownThinkingLevel = "dynamic" | "off" | "minimal" | "low" | "medium" | "high" | "max";
+
 export type ModelMetadata = {
   provider: string;
   name: Lowercase<string>;
@@ -43,5 +45,19 @@ export type ModelMetadata = {
    * @see https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
    */
   thinkingBudgets?: Readonly<[min: number, max: number]>;
-  thinking: boolean | "force";
+  /**
+   * Mapping from {@link WellknownThinkingLevel} enumeration type to the text value for `reasoning_effort`/`thinkingLevel`.
+   *
+   * - OpenAI spec: `reasoning_effort`
+   * - Google: `thinkingLevel`
+   */
+  thinkingLevels?: { [x in WellknownThinkingLevel]?: string };
+  thinkingLevelProps?: string;
+  /**
+   * The behavior of "force" here is as follows:
+   *
+   * - For the OpenAI standard, it indicates that although the model supports reasoning, it does not support parameter configuration.
+   * - For Google AI, it indicates that the model must include a minimum thinking budget.
+   */
+  thinking?: boolean | "force";
 };

@@ -10,28 +10,34 @@ import type {
   ChatCompletionDeveloperMessageParam,
   ChatCompletionSystemMessageParam,
   ChatCompletionTool,
-  ReasoningEffort,
 } from "openai/resources";
 import type { ChatParams } from "./types.js";
 import type { MessagesBuilder } from "./messages-builder.js";
-import { KnownModelProvider, type ModelMetadata } from "./model-metadata/types.js";
+import type { WellknownThinkingLevel } from "./model-metadata/types.js";
+import { type ModelMetadata } from "./model-metadata/types.js";
 import { openAIToolsToAnthropicAITools, openAIToolsToGoogleAITools } from "./tools.js";
 import { FunctionCallingConfigMode } from "@google/genai";
 import { estimateOpenAIMessageTokens } from "./estimate-tokens/openai.js";
+import { calcThinkingBudget, setReasoningEffortForOpenAI, setThinkingLevelForGoogleAI } from "./thinking-level.js";
 
-type Provider = "google" | "openai" | "anthropic";
+export type ChatParamsBuilderProvider = "google" | "openai" | "anthropic";
+
 type ChatParamsBuilderCommonOpts = {
   seed?: number;
   temperature?: number;
+  //
   systemPromptCache?: "5m" | "1h";
-  thinking?: ThinkingBudget;
+  thinking?: WellknownThinkingLevel;
+  //
   estimatedInputTokens?: number;
-  maxOutputTokens?: (provider: Provider, estimatedInputTokens: number) => number | undefined | void;
+  estimatedOutputTokens?: number;
+  //
+  maxOutputTokens?: (provider: ChatParamsBuilderProvider, estimatedInputTokens: number) => number | undefined | void;
 };
 
 function getMaxOutputTokens(
   fn: ChatParamsBuilderCommonOpts["maxOutputTokens"],
-  provider: Provider,
+  provider: ChatParamsBuilderProvider,
   model: ModelMetadata,
   inputTokens: number
 ) {
@@ -42,6 +48,7 @@ function getMaxOutputTokens(
   if (model.maxOutputTokens) return Math.min(model.maxOutputTokens, count);
   return count;
 }
+
 function getSystemRoleForOpenAI(model: ModelMetadata): "developer" | "system" {
   // o1, o3, gpt-4.1, gpt-4o, gpt-5, ...
   if (model.name.match(/^(?:o\d+)(?:$|-)/)) return "developer";
@@ -49,23 +56,24 @@ function getSystemRoleForOpenAI(model: ModelMetadata): "developer" | "system" {
   return "system";
 }
 
-export type ThinkingBudget = "dynamic" | "off" | "minimal" | "low" | "medium" | "high" | "max";
-
 export class ChatParamsBuilder {
   readonly google: ChatParams.Google;
   readonly openai: ChatParams.OpenAI;
   readonly anthropic: ChatParams.Anthropic;
 
   readonly estimatedInputTokens: number;
+  readonly estimatedOutputTokens: number;
 
   constructor(
     readonly model: ModelMetadata,
     readonly messages: MessagesBuilder,
-    readonly opts: ChatParamsBuilderCommonOpts = {}
+    opts: ChatParamsBuilderCommonOpts = {}
   ) {
     const modelName = model.name.replace(/^models\//, "");
     const inputTokens = opts.estimatedInputTokens ?? estimateOpenAIMessageTokens(messages.openai);
+    //
     this.estimatedInputTokens = inputTokens;
+    this.estimatedOutputTokens = opts.estimatedOutputTokens || inputTokens * 1;
 
     this.google = {
       model: modelName,
@@ -145,96 +153,33 @@ export class ChatParamsBuilder {
     anthropic.max_tokens = Math.min(anthropic.max_tokens + incrTokens, max);
   }
 
-  private getOpenAIReasoningEffort(budget: ThinkingBudget): ReasoningEffort | undefined {
-    if (!this.model.thinking) return;
-    if (this.model.provider === KnownModelProvider.XAI) {
-      // reasoning_effort is not supported by grok-4.
-      // Specifying reasoning_effort parameter will get an error response.
-      if (this.model.thinking === "force") return;
-      switch (budget) {
-        case "minimal":
-        case "low":
-        case "medium":
-          return "low";
-        case "high":
-        case "max":
-          return "high";
-        default:
-          return;
-      }
-    }
-    switch (budget) {
-      case "max":
-        return "high";
-      case "minimal":
-      case "low":
-      case "medium":
-      case "high":
-        return budget;
-      default:
-        return;
-    }
-  }
-
-  setThinkingBudget(budget: ThinkingBudget, incrMaxOutputToken?: boolean, maxOutputTokens?: number): number {
+  setThinkingBudget(budget: WellknownThinkingLevel, incrMaxOutputToken?: boolean, maxOutputTokens?: number): number {
     const { model } = this;
     if (!model.thinking) return 0;
-    this.openai.reasoning_effort = this.getOpenAIReasoningEffort(budget);
-    // this.anthropic.thinking = { type: "enabled", budget_tokens: 1024 };
+    setReasoningEffortForOpenAI(this.openai, this.model, budget);
 
-    let min: number, max: number;
-    if (model.thinkingBudgets) {
-      min = model.thinkingBudgets[0];
-      max = model.thinkingBudgets[1];
-    } else {
-      // https://docs.claude.com/en/api/messages
-      // Must be ≥1024 and less than max_tokens.
-      // max_tokens: The maximum number of tokens to generate before stopping.
-      min = 1024;
-      max = this.anthropic.max_tokens;
+    let budgetsResult: number | undefined;
+    if (!setThinkingLevelForGoogleAI(this.google, this.model, budget)) {
       //
-      let _max = this.openai.max_completion_tokens;
-      if (_max && _max < max) max = _max;
-      //
-      _max = this.google.config?.maxOutputTokens;
-      if (_max && _max < max) max = _max;
-    }
-    if (typeof maxOutputTokens === "number" && max > maxOutputTokens) max = maxOutputTokens;
-
-    let tokens = this.estimatedInputTokens;
-    switch (budget) {
-      case "off":
-        this.google.config!.thinkingConfig = {
-          thinkingBudget: model.thinking === "force" ? min : 0,
-        };
-        this.anthropic.thinking = { type: "disabled" };
-        return 0;
-      case "dynamic":
-        this.google.config!.thinkingConfig = { thinkingBudget: -1 };
-        return 0;
-      case "max":
-        this.google.config!.thinkingConfig = { thinkingBudget: max };
-        this.anthropic.thinking = { type: "enabled", budget_tokens: max };
-        if (incrMaxOutputToken) this.incrMaxOutputTokens(max);
-        return max;
-      case "minimal":
-        this.google.config!.thinkingConfig = { thinkingBudget: min };
-        this.anthropic.thinking = { type: "enabled", budget_tokens: min };
-        if (incrMaxOutputToken) this.incrMaxOutputTokens(min);
-        return min;
-      case "medium":
-        tokens *= 2;
-        break;
-      case "high":
-        tokens *= 4;
-        break;
+      const budgets = calcThinkingBudget(this.model, budget, true, this.estimatedOutputTokens, [
+        this.google.config?.maxOutputTokens,
+        maxOutputTokens,
+      ]);
+      if (!this.google.config?.thinkingConfig) this.google.config!.thinkingConfig = {};
+      this.google.config!.thinkingConfig = { thinkingBudget: budgets };
+      budgetsResult = budgets;
     }
 
-    if (tokens < min) tokens = min;
-    if (tokens > max) tokens = max;
-    this.google.config!.thinkingConfig = { thinkingBudget: tokens };
-    this.anthropic.thinking = { type: "enabled", budget_tokens: tokens };
-    if (incrMaxOutputToken) this.incrMaxOutputTokens(tokens);
-    return tokens;
+    const budgets = calcThinkingBudget(this.model, budget, false, this.estimatedOutputTokens, [
+      this.anthropic.max_tokens,
+      maxOutputTokens,
+    ]);
+    if (typeof budgets === "number") {
+      this.anthropic.thinking = budgets <= 0 ? { type: "disabled" } : { type: "enabled", budget_tokens: budgets };
+      if (typeof budgetsResult !== "number" || budgetsResult <= 0) budgetsResult = budgets;
+    }
+
+    if (budgets && incrMaxOutputToken) this.incrMaxOutputTokens(budgets);
+    return budgets || 0;
   }
 }

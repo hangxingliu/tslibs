@@ -24,6 +24,7 @@ export * from "./model-metadata/xai.js";
 //
 export * from "./chat-param-builder.js";
 export * from "./messages-builder.js";
+export * from "./thinking-level.js";
 export * from "./tools.js";
 export * from "./transforms.js";
 export * from "./types.js";
