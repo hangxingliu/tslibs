@@ -16,3 +16,22 @@ export class MapWithInit<Key = string, Value = any> extends Map<Key, Value> {
     };
   }
 }
+
+export class MapList<Key = string, T = any> extends Map<Key, T[]> {
+  push(key: Key, ...items: T[]) {
+    const value = this.get(key);
+    if (!value) this.set(key, items);
+    else value.push(...items);
+  }
+
+  /**
+   * @returns always a list (empty list if this key is not existed)
+   */
+  getList(key: Key): T[] {
+    return this.get(key) || [];
+  }
+
+  getKeys() {
+    return Array.from(this.keys());
+  }
+}

@@ -39,6 +39,6 @@ describe("validateSchema", () => {
   test("should validate successfully with optional properties missing", async () => {
     const data = { name: "test" };
     const result = await validateSchema(data, schema);
-    expect(result).toBe(data);
+    expect(result).toBe(data as any);
   });
 });

@@ -29,6 +29,7 @@ export * from "./strings/wildcard-pattern-to-regexp.js";
 export { parse as parseJSONC } from "./third_party/jsonc-parser/main.js";
 
 export * from "./assert.js";
+export * from "./duration.js";
 export * from "./error.js";
 export * from "./table.js";
 export * from "./tick.js";
