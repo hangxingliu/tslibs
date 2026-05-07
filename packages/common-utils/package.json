@@ -41,15 +41,15 @@
     "watch": "tsc -b tsconfig.json --watch",
     "start": "tsc -b tsconfig.json && node esm",
     "clean": "rimraf --glob cjs esm '*.tsbuildinfo'",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "bun test"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.10",
-    "@types/node": "^22.19.7",
+    "@types/bun": "^1.3.13",
+    "@types/node": "^25.6.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "eslint": "^9.39.2",
-    "mocha": "11.7.5",
     "rimraf": "^6.1.2",
     "typescript": "^5.9.3"
   },

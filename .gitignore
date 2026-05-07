@@ -7,6 +7,8 @@
 public
 out
 
+docs/ai-tasks
+
 /.venv.sh
 /*-agent.yml
 /*-agent.yaml
