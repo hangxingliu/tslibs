@@ -4,22 +4,22 @@ import { assertProps } from "./assert.js";
 describe("assertProps", () => {
   test("should assert string property successfully", () => {
     const obj = { name: "test" };
-    expect(assertProps(obj, "name", "string")).toBe(obj);
+    assertProps(obj, "name", "string");
   });
 
   test("should assert number property successfully", () => {
     const obj = { age: 25 };
-    expect(assertProps(obj, "age", "number")).toBe(obj);
+    assertProps(obj, "age", "number");
   });
 
   test("should assert object property successfully", () => {
     const obj = { meta: { id: 1 } };
-    expect(assertProps(obj, "meta", "object")).toBe(obj);
+    assertProps(obj, "meta", "object");
   });
 
   test("should assert array property successfully", () => {
     const obj = { tags: ["a", "b"] };
-    expect(assertProps(obj, "tags", "array")).toBe(obj);
+    assertProps(obj, "tags", "array");
   });
 
   test("should throw error if object is null or undefined", () => {
@@ -56,6 +56,26 @@ describe("assertProps", () => {
     const obj = { name: 123 };
     expect(() => assertProps(obj as any, "name", "string", "UserObject")).toThrow(
       "The type of property 'name' in the UserObject is not string. but number"
+    );
+  });
+
+  test("should assert object itself if prop is null or undefined", () => {
+    const obj = { name: "test" };
+    assertProps(obj, null, "object");
+    assertProps(obj, undefined, "object");
+    assertProps("hello", null, "string");
+  });
+
+  test("should throw error if property value is null", () => {
+    const obj = { name: null };
+    expect(() => assertProps(obj as any, "name", "string")).toThrow(
+      "The type of property 'name' in the props is not string. but object"
+    );
+  });
+
+  test("should throw error if object itself type is incorrect", () => {
+    expect(() => assertProps("not a number" as any, null, "number")).toThrow(
+      "The type of props is not number. but string"
     );
   });
 });

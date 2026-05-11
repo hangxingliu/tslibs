@@ -24,6 +24,11 @@ export type TablePrinterOptions<State> = {
 
 export type ColorizedTableRowState = { color: string };
 
+/**
+ * string[]: multi-line mode
+ */
+export type TableCellType = number | string | boolean | null | undefined | ReadonlyArray<string>;
+
 export class TablePrinter<State = any> {
   static readonly RowType = TableRowType;
 
@@ -40,6 +45,9 @@ export class TablePrinter<State = any> {
   private rows: string[][] = [];
   private states: (State | undefined)[] = [];
   private colWidths: number[] = [];
+  get length() {
+    return this.rows.length;
+  }
   //#endregion state
 
   //#region config
@@ -49,7 +57,7 @@ export class TablePrinter<State = any> {
   private readonly numOfCols: number;
   private readonly boundary: string;
   private readonly stringify: TableRowStringify<State>;
-  private readonly len: (str: string) => number;
+  private readonly lenFn: (str: string) => number;
   //#endregion config
 
   constructor(header: string[], opts?: TablePrinterOptions<State>) {
@@ -78,14 +86,14 @@ export class TablePrinter<State = any> {
     this.boundary = boundary;
     this.numOfCols = numOfCols;
     this.stringify = stringify;
-    this.len = opts?.len || (ansiEscape ? lenWithANSIEscape : len);
+    this.lenFn = opts?.len || (ansiEscape ? lenWithANSIEscape : len);
     this.resetState();
   }
 
   resetState() {
     this.rows = [];
     this.states = [];
-    this.colWidths = this.headers.map(this.len);
+    this.colWidths = this.headers.map(this.lenFn);
   }
 
   setAlign(at: string | number, align?: string) {
@@ -98,27 +106,54 @@ export class TablePrinter<State = any> {
     this.align[at] = align;
   }
 
-  addRows(rows: any[][], states: State[] = []) {
+  addRows(rows: TableCellType[][], states: State[] = []) {
     rows.forEach((row, i) => this.addRow(row, states[i]));
   }
 
-  addRow(_row: any[], state?: State) {
+  _addRow(row: string[], state?: State) {
     const cols: string[] = [];
     this.rows.push(cols);
     this.states.push(state);
     for (let i = 0; i < this.numOfCols; i++) {
-      let v: string = _row[i];
-      if (v === null || v === undefined) v = "";
-      else if (typeof v !== "string") v = String(v);
-      cols.push(v);
-
-      const width = this.len(v);
+      const str = row[i] || "";
+      const width = this.lenFn(str);
+      cols.push(str);
       if (width > this.colWidths[i]) this.colWidths[i] = width;
     }
   }
 
+  addRow(row: TableCellType[], state?: State) {
+    if (row.some((it) => Array.isArray(it))) {
+      // multi-line mode
+      let maxLine = 1;
+      const allLines: string[][] = [];
+      for (const col of row) {
+        let lines: string[];
+        if (Array.isArray(col)) {
+          lines = col;
+        } else {
+          if (col === null || col === undefined) lines = [""];
+          else lines = [String(col)];
+        }
+        if (lines.length > maxLine) maxLine = lines.length;
+        allLines.push(lines);
+      }
+      for (let i = 0; i < maxLine; i++) {
+        const cols: string[] = [];
+        for (const lines of allLines) cols.push(lines[i] || "");
+        this._addRow(cols, state);
+      }
+      return;
+    }
+    const strs = row.map((it) => {
+      if (it === null || it === undefined) return "";
+      return String(it);
+    });
+    return this._addRow(strs, state);
+  }
+
   private padEnd(str: string, len: number) {
-    const currLen = this.len(str);
+    const currLen = this.lenFn(str);
     if (currLen >= len) return str;
     return str + "".padEnd(len - currLen);
   }
