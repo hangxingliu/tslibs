@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/// <reference types="node" />
 //@ts-check
 if (!process.version || /^v([1-9]|1[1-9])\./.test(process.version))
   throw new Error(`Unsupported Node.js version: ${process.version}`);
@@ -17,7 +18,7 @@ const USAGE = [
   "  Options:",
   "",
   "    -l, --list                   List all available packages",
-  "       --src <path-to-lib-dir>   The path of my typescript library directory (env: MY_TS_LIBS_DIR)",
+  "       --src <path-to-lib-dir>   The path of my typescript library directory (env: LOCAL_TS_LIBS_DIR)",
   "       --no-env                  Disable loading .env file",
   "       --org <org-name>          The org name for target packages",
   "       --cjs                     Force to set type to 'commonjs'",
@@ -249,19 +250,19 @@ async function main() {
   const [targetDir, ..._inputPkgNames] = _args;
   if (!targetDir && !options.list) return showUsage();
 
-  let projectSourceDir = options.src || process.env.MY_TS_LIBS_DIR;
+  let projectSourceDir = options.src || process.env.LOCAL_TS_LIBS_DIR;
   const envFile = path.resolve(process.cwd(), ".env");
   if (existsSync(envFile)) {
     try {
       /** @type {any} */
       const env = util.parseEnv(await fs.readFile(envFile, "utf-8"));
-      if (env.MY_TS_LIBS_DIR && !projectSourceDir) projectSourceDir = path.resolve(process.cwd(), env.MY_TS_LIBS_DIR);
+      if (env.LOCAL_TS_LIBS_DIR && !projectSourceDir) projectSourceDir = path.resolve(process.cwd(), env.LOCAL_TS_LIBS_DIR);
     } catch (/** @type {any} */ error) {
       process.stderr.write(`warn: failed to load .env file: ${error.message}\n`);
     }
   }
 
-  if (!projectSourceDir) throw `Error: please provide --src or env var MY_TS_LIBS_DIR for updating`;
+  if (!projectSourceDir) throw `Error: please provide --src or env var LOCAL_TS_LIBS_DIR for updating`;
   if (!existsSync(projectSourceDir)) throw `Error: The source path "${projectSourceDir}" doesn't exist`;
 
   const packagesSourceDir = path.resolve(projectSourceDir, "packages");
