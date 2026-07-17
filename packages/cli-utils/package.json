@@ -1,6 +1,6 @@
 {
   "name": "@hangxingliu/cli-utils",
-  "version": "5.2.0",
+  "version": "6.0.0",
   "type": "module",
   "license": "MIT",
   "main": "cjs/index.js",
@@ -29,6 +29,11 @@
       "import": "./esm/*.js",
       "types": "./cjs/*.d.ts"
     },
+    "./yaml": {
+      "require": "./cjs/yaml/index.js",
+      "import": "./esm/yaml/index.js",
+      "types": "./cjs/yaml/index.d.ts"
+    },
     ".": {
       "require": "./cjs/index.js",
       "import": "./esm/index.js",
@@ -53,13 +58,18 @@
     "mocha": "11.7.5",
     "prettier": "^3.8.1",
     "rimraf": "^6.1.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "yaml": "^2.9.0"
   },
   "peerDependencies": {
-    "prettier": "^3"
+    "prettier": "^3",
+    "yaml": ">=2"
   },
   "peerDependenciesMeta": {
     "prettier": {
+      "optional": true
+    },
+    "yaml": {
       "optional": true
     }
   },
