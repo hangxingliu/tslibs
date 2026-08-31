@@ -72,8 +72,10 @@ dynamic budget, and it is accepted by Google AI only.
 `callToolsForGoogle` / `callToolsForAnthropic` / `callToolsForOpenAI` never throw: all the failures
 (unknown function name, malformed arguments, an error thrown by the implementation) are collected
 into the returned `errors` array. The function implementations are looked up by
-`resolveToolImplementation`, which only accepts the **own** properties of the tools object to avoid
-prototype pollution.
+`resolveToolImplementation`, which accepts the own properties of the tools object **and** the
+methods declared by its own class(es) (so `new ToolsImpl()` works), but it stops the prototype
+chain walk before `Object.prototype` / `Function.prototype` and rejects the names `__proto__`,
+`constructor` and `prototype` to avoid prototype pollution.
 
 ## Testing
 

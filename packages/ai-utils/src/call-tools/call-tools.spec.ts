@@ -23,8 +23,22 @@ describe("resolveToolImplementation", () => {
     expect(typeof resolveToolImplementation(tools, "get_time")).toBe("function");
   });
 
-  test("should not resolve anything from the prototype chain", () => {
+  test("should not resolve anything from the built-in prototypes", () => {
     const { tools } = createTools();
+    for (const name of ["constructor", "toString", "hasOwnProperty", "__proto__"])
+      expect(resolveToolImplementation(tools as any, name)).toBeUndefined();
+  });
+
+  test("should resolve a method defined in the class of the tools instance", () => {
+    class BaseTools {
+      async get_time() {}
+    }
+    class Tools extends BaseTools {
+      async fail() {}
+    }
+    const tools = new Tools();
+    expect(typeof resolveToolImplementation(tools as any, "get_time")).toBe("function");
+    expect(typeof resolveToolImplementation(tools as any, "fail")).toBe("function");
     for (const name of ["constructor", "toString", "hasOwnProperty", "__proto__"])
       expect(resolveToolImplementation(tools as any, name)).toBeUndefined();
   });
