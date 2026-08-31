@@ -20,7 +20,7 @@ const GEMINI_3_THINKING_LEVELS = {
   max: "high",
 } satisfies ModelMetadata["thinkingLevels"];
 
-const GEMINI_3_1_PRO_THINKING_LEVELS = {
+const GEMINI_3_THINKING_LEVELS_WITHOUT_MINIMAL = {
   ...GEMINI_3_THINKING_LEVELS,
   minimal: "low",
 } satisfies ModelMetadata["thinkingLevels"];
@@ -28,8 +28,74 @@ const GEMINI_3_1_PRO_THINKING_LEVELS = {
 /**
  * - https://ai.google.dev/gemini-api/docs/models
  * - https://ai.google.dev/gemini-api/docs/pricing
+ *
+ * The prices of `gemini-3.7-flash` and `gemini-3.6-flash` listed below are the promotional prices
+ * that are valid through December 31, 2026. They will be doubled starting January 1, 2027.
  */
 export const GOOGLE_GEMINI_MODELS = [
+  // Gemini 3.7
+  {
+    provider: KnownModelProvider.GOOGLE,
+    name: "gemini-3.7-flash",
+    prefixes: ["gemini-3.7-flash"],
+    //
+    cost1MInputTokens: 0.75,
+    cost1MOutputTokens: 3.75,
+    cost1MCachedTokens: 0.075,
+    cost1MCachedTokensWrite: 0,
+    maxOutputTokens: 65_536,
+    maxInputTokens: 1_048_576,
+    //
+    thinking: true,
+    thinkingLevels: GEMINI_3_THINKING_LEVELS_WITHOUT_MINIMAL,
+  },
+  // Gemini 3.6
+  {
+    provider: KnownModelProvider.GOOGLE,
+    name: "gemini-3.6-flash",
+    prefixes: ["gemini-3.6-flash"],
+    //
+    cost1MInputTokens: 0.75,
+    cost1MOutputTokens: 3.75,
+    cost1MCachedTokens: 0.075,
+    cost1MCachedTokensWrite: 0,
+    maxOutputTokens: 65_536,
+    maxInputTokens: 1_048_576,
+    //
+    thinking: true,
+    thinkingLevels: GEMINI_3_THINKING_LEVELS,
+  },
+  // Gemini 3.5
+  {
+    provider: KnownModelProvider.GOOGLE,
+    name: "gemini-3.5-flash-lite",
+    prefixes: ["gemini-3.5-flash-lite"],
+    //
+    cost1MInputTokens: 0.3,
+    cost1MOutputTokens: 2.5,
+    cost1MCachedTokens: 0.03,
+    cost1MCachedTokensWrite: 0,
+    maxOutputTokens: 65_536,
+    maxInputTokens: 1_048_576,
+    //
+    thinking: true,
+    thinkingLevels: GEMINI_3_THINKING_LEVELS,
+  },
+  {
+    provider: KnownModelProvider.GOOGLE,
+    name: "gemini-3.5-flash",
+    prefixes: ["gemini-3.5-flash"],
+    //
+    cost1MInputTokens: 1.5,
+    cost1MOutputTokens: 9,
+    cost1MCachedTokens: 0.15,
+    cost1MCachedTokensWrite: 0,
+    maxOutputTokens: 65_536,
+    maxInputTokens: 1_048_576,
+    //
+    thinking: true,
+    thinkingLevels: GEMINI_3_THINKING_LEVELS,
+  },
   // Gemini 3.1
   {
     provider: KnownModelProvider.GOOGLE,
@@ -52,13 +118,13 @@ export const GOOGLE_GEMINI_MODELS = [
     maxOutputTokens: 65_536,
     maxInputTokens: 1_048_576,
     //
-    thinkingLevels: GEMINI_3_1_PRO_THINKING_LEVELS,
+    thinking: true,
+    thinkingLevels: GEMINI_3_THINKING_LEVELS_WITHOUT_MINIMAL,
   },
   {
     provider: KnownModelProvider.GOOGLE,
-    name: "gemini-3.1-flash-lite-preview",
-    prefixes: ["gemini-3.1-flash"],
-    //
+    name: "gemini-3.1-flash-lite",
+    prefixes: ["gemini-3.1-flash-lite", "gemini-3.1-flash"],
     //
     cost1MInputTokens: 0.25,
     cost1MOutputTokens: 1.5,
@@ -67,33 +133,10 @@ export const GOOGLE_GEMINI_MODELS = [
     maxOutputTokens: 65_536,
     maxInputTokens: 1_048_576,
     //
+    thinking: true,
     thinkingLevels: GEMINI_3_THINKING_LEVELS,
   },
-  //
-  //
-  {
-    provider: KnownModelProvider.GOOGLE,
-    name: "gemini-3-pro-preview",
-    prefixes: ["gemini-3-pro"],
-    //
-    cost1MInputTokens: [
-      { gt: 200_000, price: 4 },
-      { gt: 0, price: 2 },
-    ],
-    cost1MOutputTokens: [
-      { gt: 200_000, price: 18 },
-      { gt: 0, price: 12 },
-    ],
-    cost1MCachedTokens: [
-      { gt: 200_000, price: 0.4 },
-      { gt: 0, price: 0.2 },
-    ],
-    cost1MCachedTokensWrite: 0,
-    maxOutputTokens: 65_536,
-    maxInputTokens: 1_048_576,
-    //
-    thinking: true,
-  },
+  // Gemini 3
   {
     provider: KnownModelProvider.GOOGLE,
     name: "gemini-3-flash-preview",
@@ -107,61 +150,6 @@ export const GOOGLE_GEMINI_MODELS = [
     maxInputTokens: 1_048_576,
     //
     thinking: true,
-  },
-  {
-    provider: KnownModelProvider.GOOGLE,
-    name: "gemini-2.5-pro",
-    prefixes: ["gemini-2.5-pro"],
-    //
-    cost1MInputTokens: [
-      { gt: 200_000, price: 2.5 },
-      { gt: 0, price: 1.25 },
-    ],
-    cost1MOutputTokens: [
-      { gt: 200_000, price: 15 },
-      { gt: 0, price: 10 },
-    ],
-    cost1MCachedTokens: [
-      { gt: 200_000, price: 0.25 },
-      { gt: 0, price: 0.125 },
-    ],
-    cost1MCachedTokensWrite: 0,
-    maxOutputTokens: 65_536,
-    maxInputTokens: 1_048_576,
-    //
-    thinkingBudgets: [128, 32768],
-    thinking: "force",
-  },
-  {
-    provider: KnownModelProvider.GOOGLE,
-    name: "gemini-2.5-flash",
-    prefixes: ["gemini-2.5-flash"],
-    //
-    cost1MInputTokens: 0.3,
-    cost1MOutputTokens: 2.5,
-    cost1MCachedTokens: 0.03,
-    cost1MCachedTokensWrite: 0,
-
-    maxOutputTokens: 65_536,
-    maxInputTokens: 1_048_576,
-    //
-    thinkingBudgets: [0, 24576],
-    thinking: true,
-  },
-  {
-    provider: KnownModelProvider.GOOGLE,
-    name: "gemini-2.5-flash-lite",
-    prefixes: ["gemini-2.5-flash-lite"],
-    //
-    cost1MInputTokens: 0.1,
-    cost1MOutputTokens: 0.4,
-    cost1MCachedTokens: 0.03,
-    cost1MCachedTokensWrite: 0,
-
-    maxOutputTokens: 65_536,
-    maxInputTokens: 1_048_576,
-    //
-    thinkingBudgets: [512, 24576],
-    thinking: true,
+    thinkingLevels: GEMINI_3_THINKING_LEVELS,
   },
 ] as const satisfies ModelMetadata[];

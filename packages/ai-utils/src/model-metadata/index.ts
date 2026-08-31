@@ -7,20 +7,37 @@
 import type { ModelMetadata } from "./types.js";
 import { ANTHROPIC_MODELS } from "./anthropic.js";
 import { GOOGLE_GEMINI_MODELS } from "./google.js";
+import { GOOGLE_GEMINI_ARCHIVED_MODELS } from "./google-archived.js";
 import { XAI_MODELS } from "./xai.js";
+import { ANTHROPIC_ARCHIVED_MODELS } from "./anthropic-archived.js";
+import { XAI_ARCHIVED_MODELS } from "./xai-archived.js";
 
 type ItemType<Array extends readonly unknown[]> = Array extends readonly (infer Item)[] ? Item : never;
 type ModelNames<Array extends readonly ModelMetadata[]> = ItemType<Array>["name"];
 type ModelPrefixes<Array extends readonly ModelMetadata[]> = ItemType<ItemType<Array>["prefixes"]>;
 
-export const ALL_MODELS = [...ANTHROPIC_MODELS, ...GOOGLE_GEMINI_MODELS, ...XAI_MODELS] as ModelMetadata[];
+export const ALL_MODELS = [
+  ...ANTHROPIC_MODELS,
+  ...GOOGLE_GEMINI_MODELS,
+  ...XAI_MODELS,
+  //
+  ...ANTHROPIC_ARCHIVED_MODELS,
+  ...GOOGLE_GEMINI_ARCHIVED_MODELS,
+  ...XAI_ARCHIVED_MODELS,
+] as ModelMetadata[];
 
 export type AllModelNames =
   | ModelNames<typeof ANTHROPIC_MODELS>
   | ModelNames<typeof GOOGLE_GEMINI_MODELS>
-  | ModelNames<typeof XAI_MODELS>;
+  | ModelNames<typeof XAI_MODELS>
+  | ModelNames<typeof ANTHROPIC_ARCHIVED_MODELS>
+  | ModelNames<typeof GOOGLE_GEMINI_ARCHIVED_MODELS>
+  | ModelNames<typeof XAI_ARCHIVED_MODELS>;
 
 export type AllModelPrefixes =
   | ModelPrefixes<typeof ANTHROPIC_MODELS>
   | ModelPrefixes<typeof GOOGLE_GEMINI_MODELS>
-  | ModelPrefixes<typeof XAI_MODELS>;
+  | ModelPrefixes<typeof XAI_MODELS>
+  | ModelPrefixes<typeof ANTHROPIC_ARCHIVED_MODELS>
+  | ModelPrefixes<typeof GOOGLE_GEMINI_ARCHIVED_MODELS>
+  | ModelPrefixes<typeof XAI_ARCHIVED_MODELS>;
