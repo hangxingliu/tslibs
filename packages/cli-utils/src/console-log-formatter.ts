@@ -43,7 +43,7 @@ export class ConsoleLogFormatter {
   }
 
   print(baseColor?: string | boolean) {
-    process.stdout.write(this.toString(baseColor ?? process.stdout.hasColors()) + "\n");
+    process.stdout.write(this.toString(baseColor ?? process.stdout.hasColors?.()) + "\n");
     return this.reset();
   }
 
