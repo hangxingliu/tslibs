@@ -7,6 +7,7 @@
 export * from "./colors/256.js";
 export * from "./colors/base.js";
 export * from "./colors/index.js";
+export * from "./colors/tui.js";
 export * from "./colors/utils.js";
 
 export * from "./env/env-file-parser.js";
