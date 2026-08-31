@@ -9,11 +9,15 @@
  * This is not precise and does not use any external API; it's a simple approximation.
  * Considerations:
  * - For English and code (mostly ASCII): Approximately 1 token per 4 characters.
- * - For Chinese (CJK characters): Approximately 1 token per 1-2 characters, as hanzi are often single tokens.
+ * - For Chinese/Japanese/Korean characters: Approximately 1 token per 1-2 characters, as hanzi are often single tokens.
  * - For Arabic: Approximately 1 token per 2-3 characters, accounting for script complexity.
  * - Mixed text: Processes character by character, categorizing based on Unicode ranges and averaging contributions.
  * - Punctuation and spaces: Treated similarly to English for simplicity.
  * - This is a rough estimate; actual token count can vary based on the specific tokenizer (e.g., GPT-3/4 uses cl100k_base or similar).
+ *
+ * @param text A string, or an array of strings that are estimated as one single text
+ * @param min The estimated result is never less than it (when it is a non-negative number)
+ * @param max The estimated result is never greater than it (when it is a non-negative number)
  */
 export function estimateTokensV1(
   text: string | ReadonlyArray<string | undefined | null>,

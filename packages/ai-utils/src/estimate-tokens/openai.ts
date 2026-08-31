@@ -8,6 +8,10 @@ import { estimateTokensV1 } from "./base.js";
 import type { MessageParam, TextBlockParam } from "@anthropic-ai/sdk/resources";
 import type { ChatCompletionMessageParam } from "openai/resources";
 
+/**
+ * Estimates the input tokens of the messages declared in the OpenAI standard.
+ * Only the text parts are counted, the images/files are ignored.
+ */
 export function estimateOpenAIMessageTokens(
   message:
     | string

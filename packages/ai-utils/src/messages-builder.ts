@@ -88,6 +88,10 @@ export class FileInMessage {
   }
 }
 
+/**
+ * Builds the message list of the three mainstream API standards (Google AI, Anthropic and OpenAI)
+ * at the same time, so the same conversation can be sent to any of them.
+ */
 export class MessagesBuilder {
   readonly google: Content[] = [];
   readonly openai: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [];

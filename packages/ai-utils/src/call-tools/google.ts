@@ -8,6 +8,10 @@ import type { FunctionCall, GenerateContentResponse } from "@google/genai";
 import { getErrorMessage } from "@hangxingliu/common-utils";
 import type { ToolsImplementation } from "./base.js";
 
+/**
+ * Executes all the tool/function calls in one Google AI response.
+ * The errors are collected instead of being thrown, so one failing tool doesn't skip the others.
+ */
 export async function callToolsForGoogle(
   resp: GenerateContentResponse,
   tools: ToolsImplementation<Record<string, any>>,

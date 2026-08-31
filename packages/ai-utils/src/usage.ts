@@ -61,6 +61,10 @@ export class Usage {
     return usage;
   }
 
+  /**
+   * `prompt_tokens` of the OpenAI standard already contains `prompt_tokens_details.cached_tokens`.
+   * @see https://platform.openai.com/docs/api-reference/chat/object
+   */
   static fromOpenAI(
     usageMetadata: ReadonlyDeep<
       Pick<OpenAI.CompletionUsage, "completion_tokens" | "prompt_tokens" | "prompt_tokens_details">

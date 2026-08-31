@@ -22,10 +22,16 @@ import { calcThinkingBudget, setReasoningEffortForOpenAI, setThinkingLevelForGoo
 
 export type ChatParamsBuilderProvider = "google" | "openai" | "anthropic";
 
+/**
+ * `max_tokens` is a required field of the Anthropic API, but some models don't declare their max
+ * output tokens. This value is used as the last resort in that case.
+ */
+const DEFAULT_MAX_OUTPUT_TOKENS = 8192;
+
 type ChatParamsBuilderCommonOpts = {
   seed?: number;
   temperature?: number;
-  //
+  /** Enables the Anthropic prompt cache on the system prompt with the given TTL */
   systemPromptCache?: "5m" | "1h";
   thinking?: WellknownThinkingLevel;
   //
@@ -35,6 +41,7 @@ type ChatParamsBuilderCommonOpts = {
   maxOutputTokens?: (provider: ChatParamsBuilderProvider, estimatedInputTokens: number) => number | undefined | void;
 };
 
+/** Resolves the max output tokens for one provider, and it never exceeds the model's hard limit */
 function getMaxOutputTokens(
   fn: ChatParamsBuilderCommonOpts["maxOutputTokens"],
   provider: ChatParamsBuilderProvider,
@@ -56,6 +63,11 @@ function getSystemRoleForOpenAI(model: ModelMetadata): "developer" | "system" {
   return "system";
 }
 
+/**
+ * Builds the chat completion payloads of the three mainstream API standards (Google AI, Anthropic
+ * and OpenAI) from the same messages, so the caller can switch the provider without rebuilding
+ * the request.
+ */
 export class ChatParamsBuilder {
   readonly google: ChatParams.Google;
   readonly openai: ChatParams.OpenAI;
@@ -108,6 +120,10 @@ export class ChatParamsBuilder {
     if (opts.thinking) this.setThinkingBudget(opts.thinking, true);
   }
 
+  /**
+   * Binds the tools (declared in the OpenAI standard) into all the payloads.
+   * @param mode `auto` lets the model decide, `required` forces the model to call at least one tool
+   */
   bindTools(this: ChatParamsBuilder, tools: Array<ChatCompletionTool>, mode?: "auto" | "required") {
     this.google.config!.tools = openAIToolsToGoogleAITools(tools);
     this.anthropic.tools = openAIToolsToAnthropicAITools(tools);
@@ -143,6 +159,10 @@ export class ChatParamsBuilder {
     this.anthropic.max_tokens = tokens;
   }
 
+  /**
+   * Increases the max output tokens of all the payloads by `incrTokens`.
+   * It is used for reserving extra room for the thinking tokens.
+   */
   incrMaxOutputTokens(incrTokens: number) {
     const max = this.model.maxOutputTokens || Infinity;
     const { google, anthropic, openai } = this;
@@ -153,6 +173,17 @@ export class ChatParamsBuilder {
     anthropic.max_tokens = Math.min(anthropic.max_tokens + incrTokens, max);
   }
 
+  /**
+   * Applies the thinking configuration on all the payloads:
+   *
+   * - OpenAI standard: `reasoning_effort` (or the property declared by the model metadata)
+   * - Google AI: `thinkingLevel` for Gemini 3+, and `thinkingBudget` for the older models
+   * - Anthropic: `effort` (handled by the OpenAI standard branch) and the extended thinking budget
+   *
+   * @param incrMaxOutputToken Whether the max output tokens should be increased by the resolved
+   * budget, so the thinking tokens don't eat up the room of the final answer
+   * @returns The resolved thinking budget in tokens (`0` means "no numeric budget is used")
+   */
   setThinkingBudget(budget: WellknownThinkingLevel, incrMaxOutputToken?: boolean, maxOutputTokens?: number): number {
     const { model } = this;
     if (!model.thinking) return 0;

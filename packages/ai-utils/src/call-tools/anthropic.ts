@@ -8,6 +8,10 @@ import type { Anthropic } from "@anthropic-ai/sdk";
 import { getErrorMessage } from "@hangxingliu/common-utils";
 import type { ToolsImplementation } from "./base.js";
 
+/**
+ * Executes all the tool/function calls in one Anthropic response.
+ * The errors are collected instead of being thrown, so one failing tool doesn't skip the others.
+ */
 export async function callToolsForAnthropic(
   resp: Anthropic.Message,
   tools: ToolsImplementation<Record<string, any>>,

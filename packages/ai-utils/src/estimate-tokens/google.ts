@@ -9,6 +9,10 @@ import type { Content, Part } from "@google/genai";
 import { estimateTokensV1 } from "./base.js";
 import { messageToGoogleAIContentsArray } from "../transforms.js";
 
+/**
+ * Estimates the input tokens of the contents declared in the Google AI standard.
+ * Only the text parts are counted, the inline data (images/files) are ignored.
+ */
 export function estimateGoogleContentTokens(
   message: Content | Content[] | string | Part | ReadonlyArray<string | Part> | null | undefined
 ) {

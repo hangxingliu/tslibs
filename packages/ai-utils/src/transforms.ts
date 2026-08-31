@@ -10,6 +10,14 @@ import type { TextBlockParam } from "@anthropic-ai/sdk/resources/messages";
 
 type CacheControlObject = Pick<TextBlockParam, "cache_control">;
 
+/**
+ * Marks a content block as a prompt cache breakpoint of the Anthropic API.
+ *
+ * @param message A content block, or a plain string that is converted into a text block
+ * @param ttl The lifetime of the cache. **The cache is not enabled when it is missing**, so the
+ * caller can always pass an optional configuration value into this function.
+ * @see https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+ */
 export function enableAnthropicCache<T extends CacheControlObject | string = CacheControlObject>(
   message: T,
   ttl?: "5m" | "1h"
@@ -19,11 +27,16 @@ export function enableAnthropicCache<T extends CacheControlObject | string = Cac
   return block as any;
 }
 
+/** Adds the `models/` scope into the model name if it is absent */
 export function getGoogleAIModelName(model: string): `models/${string}` {
   if (model.indexOf("/") < 0) return `models/${model}`;
   return model as any;
 }
 
+/**
+ * Normalizes all the accepted message shapes into a Google AI {@link Content} array.
+ * @param role The role assigned to the contents that don't have their own role
+ */
 export function messageToGoogleAIContentsArray(
   message: Content | Content[] | string | Part | ReadonlyArray<string | Part> | null | undefined,
   role: "user" | "model"
@@ -33,6 +46,8 @@ export function messageToGoogleAIContentsArray(
 
   if (Array.isArray(message)) return message.map((it) => messageToGoogleAIContentsArray(it, role)).flat();
 
-  if ((message as Content).parts || (message as Content).role) return [message as Content];
+  const content = message as Content;
+  // A `Content` object always owns `parts` and/or `role`, and a `Part` object owns neither of them
+  if (content.parts || content.role) return [content.role ? content : { ...content, role }];
   return [{ parts: [message as Part], role }];
 }

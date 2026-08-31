@@ -5,16 +5,27 @@
  *   ORCID:    https://orcid.org/0009-0007-6518-185X
  *   --------------------------------------------------------------------------------------   */
 type TokenPriceRule = {
-  /** min tokens */
+  /**
+   * The exclusive lower bound of this tier. This rule takes effect when the token count of the
+   * request is **greater than** this value.
+   * (E.g., `gt: 200_000` means "the requests using more than 200K tokens")
+   */
   gt: number;
-  /** per 1M token */
+  /** The price (in USD) per 1M tokens */
   price: number;
 };
 
+/** A fixed price per 1M tokens, or a tiered price table (see {@link TokenPriceRule}) */
 export type ModelTokenPrice = number | ReadonlyArray<Readonly<TokenPriceRule>>;
 
+/**
+ * Anthropic charges different prices for writing into the caches with different TTLs.
+ * @see https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing
+ */
 export type AnthropicCacheWritePrice = {
+  /** The price (per 1M tokens) of writing into the 5-minute cache */
   shortLife: number;
+  /** The price (per 1M tokens) of writing into the 1-hour cache */
   longLife: number;
 };
 

@@ -16,6 +16,14 @@ import type { ChatParams } from "./types.js";
 const MIN_THINKING_BUDGET = 1024;
 const DEFAULT_MAX_THINKING_BUDGET = 32768;
 
+/**
+ * Resolves the text value of the `reasoning_effort`/`thinkingLevel` parameter for the given model.
+ *
+ * @param dynamicFallback The level used to replace the `dynamic` level, because no provider accepts
+ * `dynamic` as a valid text value of this parameter.
+ * @returns `undefined` if the model doesn't accept this parameter. In that case, the caller should
+ * fall back to the thinking budget (see {@link calcThinkingBudget}).
+ */
 function getThinkingLevel(
   model: ModelMetadata,
   level: WellknownThinkingLevel,
@@ -52,6 +60,10 @@ type MinGoogleCharParamsPayload = {
   config?: Pick<Required<ChatParams.Google>["config"], "thinkingConfig">;
 };
 
+/**
+ * Sets `config.thinkingConfig.thinkingLevel` in a Google AI payload.
+ * @returns The value written into the payload, or `undefined` if nothing was changed
+ */
 export function setThinkingLevelForGoogleAI(
   payload: MinGoogleCharParamsPayload,
   model: ModelMetadata,

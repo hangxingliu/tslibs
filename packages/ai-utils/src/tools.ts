@@ -8,11 +8,17 @@
 import type { FunctionDeclaration } from "@google/genai";
 import type { Tools } from "./types.js";
 
+/**
+ * Converts the tools declared in the OpenAI standard into the Google AI standard.
+ * All the function declarations are merged into one {@link Tools.Google} object, because the Google
+ * AI API accepts at most one tool object owning `functionDeclarations`.
+ */
 export function openAIToolsToGoogleAITools(tools: Tools.OpenAI[]): Tools.Google[] {
   const functions: FunctionDeclaration[] = [];
   for (const tool of tools) {
     if (tool.type !== "function" || !tool.function) continue;
     const func = structuredClone(tool.function);
+    // `strict` is an OpenAI specific field and it is rejected by the Google AI API
     delete func.strict;
     functions.push(func as any as FunctionDeclaration);
   }
@@ -20,6 +26,7 @@ export function openAIToolsToGoogleAITools(tools: Tools.OpenAI[]): Tools.Google[
   return [{ functionDeclarations: functions }];
 }
 
+/** Converts the tools declared in the OpenAI standard into the Anthropic standard */
 export function openAIToolsToAnthropicAITools(tools: Tools.OpenAI[]): Tools.Anthropic[] {
   const functions: Tools.Anthropic[] = [];
   for (const tool of tools) {
@@ -27,6 +34,8 @@ export function openAIToolsToAnthropicAITools(tools: Tools.OpenAI[]): Tools.Anth
     const { name, description, parameters } = tool.function;
 
     let input_schema: Tools.Anthropic["input_schema"];
+    // `input_schema` is a required field of the Anthropic API, so an empty object schema is used
+    // for the functions without any parameter
     if (parameters) input_schema = structuredClone(parameters) as any;
     else input_schema = { type: "object" };
 

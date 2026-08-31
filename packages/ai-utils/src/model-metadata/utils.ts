@@ -9,6 +9,19 @@ import type { AnthropicCacheWritePrice, ModelMetadata, ModelTokenPrice } from ".
 
 const ONE_MILLION_TOKENS = 1_000_000;
 
+/**
+ * Resolves the model metadata items matching the given model name.
+ *
+ * The matching strategy is:
+ *
+ * 1. An exact match on {@link ModelMetadata.name} always wins, and it is returned alone.
+ * 2. Otherwise, all items owning a prefix of `modelName` are returned, sorted by the length of the
+ *    matched prefix in descending order. Therefore the first element of the result is always the
+ *    most specific match. (E.g., the model name `grok-4.20-non-reasoning-latest` matches both the
+ *    prefix `grok-4.20-non-reasoning` and the more generic prefix `grok-4.20`)
+ *
+ * @param modelName Case-insensitive model name. The Google AI style `models/` scope is stripped.
+ */
 export function filterModelMetadata<Metadata extends ModelMetadata = ModelMetadata>(
   modelName: string,
   metadata: ReadonlyArray<ReadonlyDeep<Metadata>>
