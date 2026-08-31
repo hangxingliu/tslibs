@@ -6,7 +6,8 @@
  *   --------------------------------------------------------------------------------------   */
 import type { Anthropic } from "@anthropic-ai/sdk";
 import { getErrorMessage } from "@hangxingliu/common-utils";
-import type { ToolsImplementation } from "./base.js";
+import type { ToolsCallLogger, ToolsImplementation } from "./base.js";
+import { resolveToolImplementation } from "./base.js";
 
 /**
  * Executes all the tool/function calls in one Anthropic response.
@@ -15,7 +16,7 @@ import type { ToolsImplementation } from "./base.js";
 export async function callToolsForAnthropic(
   resp: Anthropic.Message,
   tools: ToolsImplementation<Record<string, any>>,
-  logger?: { log: (msg: string) => any; error: (msg: string) => any }
+  logger?: ToolsCallLogger
 ) {
   const errors: Error[] = [];
   const functionCalls: Anthropic.ToolUseBlock[] = resp.content.filter((it) => it.type === "tool_use");
@@ -32,8 +33,8 @@ export async function callToolsForAnthropic(
       errors.push(new Error(`No function name of the call(id=${id})`));
       continue;
     }
-    const fn = tools[name] as (...args: any[]) => Promise<unknown>;
-    if (!fn || typeof fn !== "function") {
+    const fn = resolveToolImplementation(tools, name);
+    if (!fn) {
       errors.push(new Error(`Unknown function name "${name}"`));
       continue;
     }

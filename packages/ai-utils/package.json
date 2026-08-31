@@ -41,7 +41,8 @@
     "watch": "tsc -b tsconfig.json --watch",
     "start": "tsc -b tsconfig.json && node esm",
     "clean": "rimraf --glob cjs esm '*.tsbuildinfo'",
-    "lint": "eslint src"
+    "lint": "eslint src",
+    "test": "bun test"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.72.1",

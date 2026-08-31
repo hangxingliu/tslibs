@@ -26,16 +26,15 @@ export function estimateTokensV1(
 ): number {
   if (!text) return inRange(0, min, max);
   if (Array.isArray(text)) {
-    let count = 0;
-    for (const item of text) if (typeof item === "string") count += estimateTokensV1(item);
-    return inRange(count, min, max);
+    // The items are joined by a line break to avoid counting the constant overhead for each of them
+    return estimateTokensV1(text.filter((it): it is string => typeof it === "string").join("\n"), min, max);
   }
 
   let charCount = 0;
   let tokenEstimate = 0;
 
   for (const char of text as string) {
-    const code = char.charCodeAt(0);
+    const code = char.codePointAt(0)!;
 
     // ASCII range (English, code, punctuation): assume ~4 chars per token
     if (code < 128) {
@@ -44,8 +43,8 @@ export function estimateTokensV1(
         tokenEstimate++;
         charCount = 0;
       }
-    } else if (code >= 0x4e00 && code <= 0x9fff) {
-      // CJK Unified Ideographs (Chinese, Japanese, Korean): assume ~2 chars per token (conservative for Chinese)
+    } else if (isCJK(code)) {
+      // CJK characters (Chinese, Japanese, Korean): assume ~2 chars per token (conservative for Chinese)
       tokenEstimate += 0.5; // Roughly 1 token per 2 chars
     } else {
       // Other characters (e.g., other languages, emojis): default to ~3 chars per token
@@ -65,6 +64,22 @@ export function estimateTokensV1(
   return inRange(Math.ceil(tokenEstimate), min, max);
 }
 
+/**
+ * Checks whether the code point belongs to the CJK scripts, which are usually tokenized into
+ * one token per one or two characters.
+ */
+function isCJK(code: number) {
+  return (
+    (code >= 0x3040 && code <= 0x30ff) || // Hiragana and Katakana
+    (code >= 0x3400 && code <= 0x4dbf) || // CJK Unified Ideographs Extension A
+    (code >= 0x4e00 && code <= 0x9fff) || // CJK Unified Ideographs
+    (code >= 0xac00 && code <= 0xd7af) || // Hangul Syllables
+    (code >= 0xf900 && code <= 0xfaff) || // CJK Compatibility Ideographs
+    (code >= 0x20000 && code <= 0x3ffff) // CJK Unified Ideographs Extension B and above
+  );
+}
+
+/** Limits `val` into the range `[min, max]`. A negative or non-numeric bound is ignored. */
 function inRange(val: number, min?: number | null, max?: number | null) {
   if (typeof min === "number" && min >= 0) val = Math.max(val, min);
   if (typeof max === "number" && max >= 0) val = Math.min(val, max);

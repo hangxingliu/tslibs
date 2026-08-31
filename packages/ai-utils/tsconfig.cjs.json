@@ -13,7 +13,11 @@
     "incremental": true,
     "rootDir": "./src",
     "outDir": "cjs",
-    "strict": true
+    "strict": true,
+    "types": [
+      "node",
+      "bun"
+    ]
   },
   "exclude": [
     "src/**/*.mts",

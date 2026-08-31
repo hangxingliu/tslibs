@@ -10,3 +10,24 @@ import type { JSONSchema, TypeFromJSONSchema } from "@hangxingliu/common-utils";
 export type ToolsImplementation<T extends Record<string, ReadonlyDeep<JSONSchema>>> = {
   [key in keyof T]: (args: TypeFromJSONSchema<T[key]>) => Promise<any>;
 };
+
+/** The logger accepted by all the `callToolsForXXX` functions */
+export type ToolsCallLogger = {
+  log: (msg: string) => any;
+  error: (msg: string) => any;
+};
+
+/**
+ * Resolves the implementation of the function `name` safely.
+ *
+ * Only the own properties of `tools` are accepted here, so a malicious/hallucinated function name
+ * (E.g., `constructor`, `toString`) can't reach anything on the prototype chain.
+ */
+export function resolveToolImplementation(
+  tools: ToolsImplementation<Record<string, any>>,
+  name: string
+): ((...args: any[]) => Promise<unknown>) | undefined {
+  if (!tools || !Object.prototype.hasOwnProperty.call(tools, name)) return;
+  const fn = (tools as Record<string, unknown>)[name];
+  return typeof fn === "function" ? (fn as (...args: any[]) => Promise<unknown>) : undefined;
+}

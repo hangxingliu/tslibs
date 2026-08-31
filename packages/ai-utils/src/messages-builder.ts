@@ -29,8 +29,8 @@ export class FileInMessage {
     readonly fileName: string,
     readonly data: Buffer
   ) {}
-  get isImage() {
-    return this.mimeType.match(/^image\//);
+  get isImage(): boolean {
+    return /^image\//.test(this.mimeType);
   }
 
   /**
@@ -123,12 +123,13 @@ export class MessagesBuilder {
       } else if (item && typeof item === "object") {
         const { mimeType, data } = item;
         const base64Data = data.toString("base64");
+        const dataUrl = `data:${mimeType};base64,${base64Data}`;
 
         google.push({ inlineData: { mimeType, data: base64Data } });
         if (item.isImage) {
           openai.push({
             type: "image_url",
-            image_url: { url: `data:${mimeType};base64,${base64Data}` },
+            image_url: { url: dataUrl },
           });
           anthropic.push(
             enableAnthropicCache<ImageBlockParam>(
@@ -142,7 +143,8 @@ export class MessagesBuilder {
         } else {
           openai.push({
             type: "file",
-            file: { file_data: base64Data, filename: item.fileName },
+            // The OpenAI standard requires a Base64 data URL here instead of the raw Base64 string
+            file: { file_data: dataUrl, filename: item.fileName },
           });
           anthropic.push(
             enableAnthropicCache<DocumentBlockParam>(
@@ -163,7 +165,10 @@ export class MessagesBuilder {
     this.anthropic.push({ role, content: anthropic });
   }
 
+  /** Appends the tool/function calls requested by the model into the conversation */
   addToolCall(requests: ReadonlyArray<{ callId: string; fnName: string; args: any }>) {
+    if (requests.length === 0) return;
+
     const anthropic: ToolUseBlockParam[] = [];
     const google: Part[] = [];
     const openai: ChatCompletionMessageToolCall[] = [];
@@ -178,17 +183,22 @@ export class MessagesBuilder {
     this.openai.push({ role: "assistant", tool_calls: openai });
   }
 
+  /** Appends the results of the tool/function calls into the conversation */
   addToolResult(
     results: ReadonlyArray<{ callId: string; fnName: string; output?: any; error?: any }>,
     opts?: MessageOptions
   ) {
+    if (results.length === 0) return;
+
     const anthropic: ToolResultBlockParam[] = [];
     const google: Part[] = [];
     for (const { callId, output, fnName, error } of results) {
       this.openai.push({ role: "tool", tool_call_id: callId, content: JSON.stringify({ output, error }) });
 
-      let anthropicResult = error || output;
-      if (typeof anthropicResult == "object") anthropicResult = JSON.stringify(anthropicResult);
+      // The Anthropic API accepts a string (or content blocks) only, so all the other types of the
+      // result are serialized into JSON here
+      const rawResult = error ?? output;
+      const anthropicResult = typeof rawResult === "string" ? rawResult : JSON.stringify(rawResult ?? null);
 
       anthropic.push(
         enableAnthropicCache<ToolResultBlockParam>(
@@ -204,7 +214,9 @@ export class MessagesBuilder {
         },
       });
     }
-    this.google.push({ role: "model", parts: google });
+    // The function responses are sent back by the client side, so their role is `user` instead of
+    // `model` in the Google AI standard
+    this.google.push({ role: "user", parts: google });
     this.anthropic.push({ role: "user", content: anthropic });
   }
 

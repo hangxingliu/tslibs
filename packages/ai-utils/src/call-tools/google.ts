@@ -6,7 +6,8 @@
  *   --------------------------------------------------------------------------------------   */
 import type { FunctionCall, GenerateContentResponse } from "@google/genai";
 import { getErrorMessage } from "@hangxingliu/common-utils";
-import type { ToolsImplementation } from "./base.js";
+import type { ToolsCallLogger, ToolsImplementation } from "./base.js";
+import { resolveToolImplementation } from "./base.js";
 
 /**
  * Executes all the tool/function calls in one Google AI response.
@@ -15,11 +16,14 @@ import type { ToolsImplementation } from "./base.js";
 export async function callToolsForGoogle(
   resp: GenerateContentResponse,
   tools: ToolsImplementation<Record<string, any>>,
-  logger?: { log: (msg: string) => any; error: (msg: string) => any }
+  logger?: ToolsCallLogger
 ) {
   const errors: Error[] = [];
   let functionCalls: FunctionCall[] = [];
-  if (resp.functionCalls) {
+  // `resp.functionCalls` is a shortcut getter, and it can return an empty array when the response
+  // contains function calls in the candidates that it doesn't recognize. So the candidates are
+  // still scanned in that case.
+  if (resp.functionCalls?.length) {
     functionCalls = resp.functionCalls;
   } else if (resp.candidates) {
     for (const candidate of resp.candidates) {
@@ -41,8 +45,8 @@ export async function callToolsForGoogle(
       errors.push(new Error(`No function name of the call(id=${id})`));
       continue;
     }
-    const fn = tools[name] as (...args: any[]) => Promise<unknown>;
-    if (!fn || typeof fn !== "function") {
+    const fn = resolveToolImplementation(tools, name);
+    if (!fn) {
       errors.push(new Error(`Unknown function name "${name}"`));
       continue;
     }

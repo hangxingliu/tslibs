@@ -6,7 +6,8 @@
  *   --------------------------------------------------------------------------------------   */
 import type { OpenAI } from "openai";
 import { getErrorMessage } from "@hangxingliu/common-utils";
-import type { ToolsImplementation } from "./base.js";
+import type { ToolsCallLogger, ToolsImplementation } from "./base.js";
+import { resolveToolImplementation } from "./base.js";
 
 /**
  * Executes all the tool/function calls in one OpenAI standard chat completion response.
@@ -15,7 +16,7 @@ import type { ToolsImplementation } from "./base.js";
 export async function callToolsForOpenAI(
   resp: OpenAI.ChatCompletion,
   tools: ToolsImplementation<Record<string, any>>,
-  logger?: { log: (msg: string) => any; error: (msg: string) => any }
+  logger?: ToolsCallLogger
 ) {
   const errors: Error[] = [];
   const toolCalls = resp.choices[0]?.message?.tool_calls;
@@ -34,14 +35,15 @@ export async function callToolsForOpenAI(
       errors.push(new Error(`No function name of the call(id=${toolCall.id})`));
       continue;
     }
-    const fn = tools[call.name] as (...args: any[]) => Promise<unknown>;
-    if (!fn || typeof fn !== "function") {
+    const fn = resolveToolImplementation(tools, call.name);
+    if (!fn) {
       errors.push(new Error(`Unknown function name "${call.name}"`));
       continue;
     }
 
     try {
-      await fn.apply(tools, [JSON.parse(call.arguments)]);
+      // `call.arguments` is a JSON string, and a malformed one is reported as an error below
+      await fn.apply(tools, [call.arguments ? JSON.parse(call.arguments) : {}]);
     } catch (error) {
       errors.push(error as Error);
     }

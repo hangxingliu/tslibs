@@ -59,7 +59,8 @@ function getMaxOutputTokens(
 function getSystemRoleForOpenAI(model: ModelMetadata): "developer" | "system" {
   // o1, o3, gpt-4.1, gpt-4o, gpt-5, ...
   if (model.name.match(/^(?:o\d+)(?:$|-)/)) return "developer";
-  if (model.name.match(/^gpt-(?:[5-9]|4[\.o])/)) return "developer";
+  if (model.name.match(/^gpt-(?:\d{2,}|[5-9])(?:$|[-.])/)) return "developer";
+  if (model.name.match(/^gpt-4[.o]/)) return "developer";
   return "system";
 }
 
@@ -85,13 +86,13 @@ export class ChatParamsBuilder {
     const inputTokens = opts.estimatedInputTokens ?? estimateOpenAIMessageTokens(messages.openai);
     //
     this.estimatedInputTokens = inputTokens;
-    this.estimatedOutputTokens = opts.estimatedOutputTokens || inputTokens * 1;
+    this.estimatedOutputTokens = opts.estimatedOutputTokens || inputTokens;
 
     this.google = {
       model: modelName,
       contents: messages.google,
       config: {
-        systemInstruction: messages.system!,
+        systemInstruction: messages.system,
         temperature: opts.temperature,
         seed: opts.seed,
         maxOutputTokens: getMaxOutputTokens(opts.maxOutputTokens, "google", model, inputTokens),
@@ -100,22 +101,29 @@ export class ChatParamsBuilder {
 
     this.anthropic = {
       model: modelName,
-      system: [enableAnthropicCache(messages.system!, opts.systemPromptCache)],
-      max_tokens: getMaxOutputTokens(opts.maxOutputTokens, "anthropic", model, inputTokens) || model.maxOutputTokens!,
+      max_tokens:
+        getMaxOutputTokens(opts.maxOutputTokens, "anthropic", model, inputTokens) ||
+        model.maxOutputTokens ||
+        DEFAULT_MAX_OUTPUT_TOKENS,
       messages: messages.anthropic,
       temperature: opts.temperature,
     };
+    // The Anthropic API rejects an empty `system` array, so this field is set only when it is needed
+    if (messages.system) this.anthropic.system = [enableAnthropicCache(messages.system, opts.systemPromptCache)];
 
-    const openAISystem: ChatCompletionDeveloperMessageParam | ChatCompletionSystemMessageParam = {
-      role: getSystemRoleForOpenAI(model),
-      content: messages.system!,
-    };
     this.openai = {
       model: modelName,
-      messages: [openAISystem, ...messages.openai],
+      messages: [...messages.openai],
       max_completion_tokens: getMaxOutputTokens(opts.maxOutputTokens, "openai", model, inputTokens),
       temperature: opts.temperature,
     };
+    if (messages.system) {
+      const openAISystem: ChatCompletionDeveloperMessageParam | ChatCompletionSystemMessageParam = {
+        role: getSystemRoleForOpenAI(model),
+        content: messages.system,
+      };
+      this.openai.messages.unshift(openAISystem);
+    }
 
     if (opts.thinking) this.setThinkingBudget(opts.thinking, true);
   }
@@ -145,10 +153,11 @@ export class ChatParamsBuilder {
   }
 
   setTemperature(temperature?: number | null) {
-    if (typeof temperature !== "number") return;
+    if (typeof temperature !== "number") return this;
     this.google.config!.temperature = temperature;
     this.openai.temperature = temperature;
     this.anthropic.temperature = temperature;
+    return this;
   }
 
   setMaxOutputTokens(tokens: number) {
@@ -157,6 +166,7 @@ export class ChatParamsBuilder {
     this.google.config!.maxOutputTokens = tokens;
     this.openai.max_completion_tokens = tokens;
     this.anthropic.max_tokens = tokens;
+    return this;
   }
 
   /**
@@ -170,7 +180,9 @@ export class ChatParamsBuilder {
       google.config!.maxOutputTokens = Math.min(google.config!.maxOutputTokens + incrTokens, max);
     if (openai.max_completion_tokens)
       openai.max_completion_tokens = Math.min(openai.max_completion_tokens + incrTokens, max);
-    anthropic.max_tokens = Math.min(anthropic.max_tokens + incrTokens, max);
+    if (typeof anthropic.max_tokens === "number")
+      anthropic.max_tokens = Math.min(anthropic.max_tokens + incrTokens, max);
+    return this;
   }
 
   /**
@@ -189,28 +201,33 @@ export class ChatParamsBuilder {
     if (!model.thinking) return 0;
     setReasoningEffortForOpenAI(this.openai, this.model, budget);
 
-    let budgetsResult: number | undefined;
+    let googleBudget: number | undefined;
+    // The models supporting `thinkingLevel` (Gemini 3+) don't accept `thinkingBudget`
     if (!setThinkingLevelForGoogleAI(this.google, this.model, budget)) {
-      //
-      const budgets = calcThinkingBudget(this.model, budget, true, this.estimatedOutputTokens, [
+      googleBudget = calcThinkingBudget(this.model, budget, true, this.estimatedOutputTokens, [
         this.google.config?.maxOutputTokens,
         maxOutputTokens,
       ]);
-      if (!this.google.config?.thinkingConfig) this.google.config!.thinkingConfig = {};
-      this.google.config!.thinkingConfig = { thinkingBudget: budgets };
-      budgetsResult = budgets;
+      if (typeof googleBudget === "number") {
+        if (!this.google.config) this.google.config = {};
+        this.google.config.thinkingConfig = { ...this.google.config.thinkingConfig, thinkingBudget: googleBudget };
+      }
     }
 
-    const budgets = calcThinkingBudget(this.model, budget, false, this.estimatedOutputTokens, [
+    // The dynamic budget (-1) is not supported by Anthropic, so `allowDynamic` is `false` here
+    const anthropicBudget = calcThinkingBudget(this.model, budget, false, this.estimatedOutputTokens, [
       this.anthropic.max_tokens,
       maxOutputTokens,
     ]);
-    if (typeof budgets === "number") {
-      this.anthropic.thinking = budgets <= 0 ? { type: "disabled" } : { type: "enabled", budget_tokens: budgets };
-      if (typeof budgetsResult !== "number" || budgetsResult <= 0) budgetsResult = budgets;
-    }
+    if (typeof anthropicBudget === "number")
+      this.anthropic.thinking =
+        anthropicBudget <= 0 ? { type: "disabled" } : { type: "enabled", budget_tokens: anthropicBudget };
 
-    if (budgets && incrMaxOutputToken) this.incrMaxOutputTokens(budgets);
-    return budgets || 0;
+    if (anthropicBudget && anthropicBudget > 0 && incrMaxOutputToken) this.incrMaxOutputTokens(anthropicBudget);
+
+    // Prefers the budget that is an actual token count over the dynamic budget (-1)
+    if (anthropicBudget && anthropicBudget > 0) return anthropicBudget;
+    if (googleBudget && googleBudget > 0) return googleBudget;
+    return googleBudget || anthropicBudget || 0;
   }
 }

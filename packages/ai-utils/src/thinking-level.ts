@@ -31,19 +31,25 @@ function getThinkingLevel(
 ) {
   if (!model.thinking) return;
   if (!model.thinkingLevels) return; // this model doesn't support thinking levels
-  if (model.thinking === "force") return;
+  if (model.thinking === "force") return; // this model doesn't accept any thinking parameter
   if (level === "off") return;
 
-  const value = model.thinkingLevels?.[level];
-  if (value) return value;
-  if (level === "dynamic" && dynamicFallback) return model.thinkingLevels[dynamicFallback] || dynamicFallback;
-  return level;
+  if (level === "dynamic") {
+    if (!dynamicFallback || dynamicFallback === "dynamic") return;
+    return model.thinkingLevels[dynamicFallback] || dynamicFallback;
+  }
+  return model.thinkingLevels[level];
 }
 
+/**
+ * Sets the reasoning effort in an OpenAI standard chat completion payload.
+ * @returns The value written into the payload, or `undefined` if nothing was changed
+ */
 export function setReasoningEffortForOpenAI(payload: any, model: ModelMetadata, level: WellknownThinkingLevel) {
   const value = getThinkingLevel(model, level, "low");
   if (!value) return;
 
+  // The property can be a nested path. E.g., `reasoning.effort`
   const prop = model.thinkingLevelProps || "reasoning_effort";
   const parts = prop.split(".");
 
@@ -78,6 +84,32 @@ export function setThinkingLevelForGoogleAI(
   return value;
 }
 
+/**
+ * Resolves the smallest positive number in `maxOutputTokens`.
+ * The thinking budget must be less than the max output tokens of the request.
+ */
+function getMaxOutputTokensLimit(maxOutputTokens?: number | Array<number | null | undefined>): number | undefined {
+  if (typeof maxOutputTokens === "number") return maxOutputTokens > 0 ? maxOutputTokens : undefined;
+  if (!Array.isArray(maxOutputTokens)) return;
+
+  let limit: number | undefined;
+  for (const val of maxOutputTokens)
+    if (typeof val === "number" && val > 0 && (limit === undefined || val < limit)) limit = val;
+  return limit;
+}
+
+/**
+ * Calculates the thinking budget (in tokens) for the models accepting a numeric budget
+ * (Anthropic extended thinking and Gemini 2 thinking budgets).
+ *
+ * @param allowDynamic Whether the provider accepts `-1` as the "let the model decide" budget.
+ * (It is supported by Google AI only)
+ * @param estimatedOutputTokens The estimated output tokens of this request. The budget is a ratio of it.
+ * @param maxOutputTokens The max output tokens of this request. It can be an array, then the
+ * smallest positive value in it is used.
+ * @returns `undefined` if the model doesn't support thinking, `-1` for the dynamic budget,
+ * or a non-negative token count
+ */
 export function calcThinkingBudget(
   model: ModelMetadata,
   level: WellknownThinkingLevel,
@@ -86,35 +118,26 @@ export function calcThinkingBudget(
   maxOutputTokens?: number | Array<number | null | undefined>
 ) {
   if (!model.thinking) return;
-  let hardLimit: { min: number; max: number };
-  if (model.thinkingBudgets) {
-    hardLimit = {
-      min: model.thinkingBudgets[0],
-      max: model.thinkingBudgets[1],
-    };
-  } else {
-    hardLimit = {
-      min: MIN_THINKING_BUDGET,
-      max: DEFAULT_MAX_THINKING_BUDGET,
-    };
-    if (typeof maxOutputTokens === "number") {
-      hardLimit.max = maxOutputTokens;
-    } else {
-      hardLimit.max = DEFAULT_MAX_THINKING_BUDGET;
-      if (Array.isArray(maxOutputTokens)) {
-        for (const val of maxOutputTokens)
-          if (typeof val === "number" && val > 0 && val < hardLimit.max) hardLimit.max = val;
-      }
-    }
-  }
+
+  const hardLimit = {
+    min: model.thinkingBudgets ? model.thinkingBudgets[0] : MIN_THINKING_BUDGET,
+    max: model.thinkingBudgets ? model.thinkingBudgets[1] : DEFAULT_MAX_THINKING_BUDGET,
+  };
+
+  // The budget must always be less than the max output tokens of the request,
+  // no matter whether the model declares its own budget range or not.
+  const limit = getMaxOutputTokensLimit(maxOutputTokens);
+  if (limit !== undefined && limit - 1 < hardLimit.max) hardLimit.max = limit - 1;
+  if (hardLimit.max < hardLimit.min) hardLimit.max = hardLimit.min;
 
   let tokens: number;
   switch (level) {
     case "off":
-      if (model.thinking === "force") return hardLimit.min;
+      // Thinking can't be disabled on these models, so the minimum budget is used instead
+      if (model.thinking === "force") return clamp(hardLimit.min);
       return 0;
     case "minimal":
-      return hardLimit.min;
+      return clamp(hardLimit.min);
     case "dynamic":
       if (allowDynamic) return -1;
       tokens = estimatedOutputTokens * 0.75;
@@ -134,8 +157,11 @@ export function calcThinkingBudget(
       tokens = estimatedOutputTokens * 0.25;
       break;
   }
+  return Math.floor(clamp(tokens));
 
-  if (tokens < hardLimit.min) tokens = hardLimit.min;
-  if (tokens >= hardLimit.max) tokens = hardLimit.max - 1;
-  return Math.floor(tokens);
+  function clamp(value: number) {
+    if (value < hardLimit.min) return hardLimit.min;
+    if (value > hardLimit.max) return hardLimit.max;
+    return value;
+  }
 }

@@ -11,14 +11,29 @@ import type { Usage as AnthropicUsage } from "@anthropic-ai/sdk/resources/messag
 import type { ModelMetadata } from "./model-metadata/types.js";
 import { calcTokenCost } from "./model-metadata/utils.js";
 
+/**
+ * A provider-independent representation of the token usage of one request.
+ *
+ * All the fields follow the same convention:
+ *
+ * - {@link totalInputTokens} contains {@link cachedInputTokens} (the cache hits), but it doesn't
+ *   contain the cache creation tokens, because they are billed by a different price.
+ * - {@link outputTokens} contains the reasoning/thinking tokens.
+ */
 export class Usage {
-  declare totalInputTokens: number;
-  declare cachedInputTokens: number;
-  declare outputTokens: number;
+  /** All the input (prompt) tokens, including {@link cachedInputTokens} */
+  totalInputTokens = 0;
+  /** The part of {@link totalInputTokens} that hit the prompt cache */
+  cachedInputTokens = 0;
+  /** All the output tokens, including the reasoning/thinking tokens */
+  outputTokens = 0;
 
-  declare cacheCreationTokens: number;
-  declare longLifeCacheCreationTokens: number;
+  /** The tokens written into the short-life (5 minutes for Anthropic) prompt cache */
+  cacheCreationTokens = 0;
+  /** The tokens written into the long-life (1 hour for Anthropic) prompt cache */
+  longLifeCacheCreationTokens = 0;
 
+  /** Calculates the cost (in USD) of this usage on the given model */
   static getCost(usage: ReadonlyDeep<Usage>, model: ReadonlyDeep<ModelMetadata>) {
     const { totalInputTokens, cachedInputTokens, outputTokens, cacheCreationTokens, longLifeCacheCreationTokens } =
       usage;
@@ -28,16 +43,33 @@ export class Usage {
     });
   }
 
+  /**
+   * `promptTokenCount` of Google AI already contains `cachedContentTokenCount`,
+   * but it doesn't contain `toolUsePromptTokenCount`.
+   * @see https://ai.google.dev/api/generate-content#UsageMetadata
+   */
   static fromGoogle(usageMetadata: ReadonlyDeep<GenerateContentResponseUsageMetadata>) {
     const usage = new Usage();
-    usage.totalInputTokens = usageMetadata.promptTokenCount || 0;
+    usage.totalInputTokens = (usageMetadata.promptTokenCount || 0) + (usageMetadata.toolUsePromptTokenCount || 0);
     usage.cachedInputTokens = usageMetadata.cachedContentTokenCount || 0;
-    usage.outputTokens = Math.max(0, (usageMetadata.totalTokenCount || 0) - usage.totalInputTokens);
-    usage.cacheCreationTokens = 0;
-    usage.longLifeCacheCreationTokens = 0;
+
+    // `candidatesTokenCount` doesn't contain the thinking tokens, and both of them can be absent
+    // in the responses of some models. So the total token count is used as the fallback here.
+    const candidates = usageMetadata.candidatesTokenCount;
+    const thoughts = usageMetadata.thoughtsTokenCount;
+    if (typeof candidates === "number" || typeof thoughts === "number") {
+      usage.outputTokens = (candidates || 0) + (thoughts || 0);
+    } else {
+      usage.outputTokens = Math.max(0, (usageMetadata.totalTokenCount || 0) - usage.totalInputTokens);
+    }
     return usage;
   }
 
+  /**
+   * Unlike the other providers, the `input_tokens` of Anthropic contains **neither** the cache read
+   * tokens **nor** the cache creation tokens. They must be summed up manually.
+   * @see https://platform.claude.com/docs/en/build-with-claude/prompt-caching
+   */
   static fromAnthropic(
     usageMetadata: ReadonlyDeep<
       Pick<
@@ -47,16 +79,15 @@ export class Usage {
     >
   ) {
     const usage = new Usage();
-    usage.totalInputTokens = usageMetadata.input_tokens;
     usage.cachedInputTokens = usageMetadata.cache_read_input_tokens || 0;
-    usage.outputTokens = usageMetadata.output_tokens;
+    usage.totalInputTokens = (usageMetadata.input_tokens || 0) + usage.cachedInputTokens;
+    usage.outputTokens = usageMetadata.output_tokens || 0;
     if (usageMetadata.cache_creation) {
       const { ephemeral_5m_input_tokens, ephemeral_1h_input_tokens } = usageMetadata.cache_creation;
-      usage.cacheCreationTokens = ephemeral_5m_input_tokens;
-      usage.longLifeCacheCreationTokens = ephemeral_1h_input_tokens;
+      usage.cacheCreationTokens = ephemeral_5m_input_tokens || 0;
+      usage.longLifeCacheCreationTokens = ephemeral_1h_input_tokens || 0;
     } else {
       usage.cacheCreationTokens = usageMetadata.cache_creation_input_tokens || 0;
-      usage.longLifeCacheCreationTokens = 0;
     }
     return usage;
   }
@@ -71,11 +102,9 @@ export class Usage {
     >
   ) {
     const usage = new Usage();
-    usage.totalInputTokens = usageMetadata.prompt_tokens;
+    usage.totalInputTokens = usageMetadata.prompt_tokens || 0;
     usage.cachedInputTokens = usageMetadata.prompt_tokens_details?.cached_tokens || 0;
-    usage.outputTokens = usageMetadata.completion_tokens;
-    usage.cacheCreationTokens = 0;
-    usage.longLifeCacheCreationTokens = 0;
+    usage.outputTokens = usageMetadata.completion_tokens || 0;
     return usage;
   }
 }
