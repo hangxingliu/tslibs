@@ -20,6 +20,10 @@ const GEMINI_3_THINKING_LEVELS = {
   max: "high",
 } satisfies ModelMetadata["thinkingLevels"];
 
+/**
+ * `minimal` is rejected by Gemini 3.8 Flash, Gemini 3.7 Flash and Gemini 3.1 Pro.
+ * It is mapped to `low`, the lowest level those models accept.
+ */
 const GEMINI_3_THINKING_LEVELS_WITHOUT_MINIMAL = {
   ...GEMINI_3_THINKING_LEVELS,
   minimal: "low",
@@ -29,10 +33,27 @@ const GEMINI_3_THINKING_LEVELS_WITHOUT_MINIMAL = {
  * - https://ai.google.dev/gemini-api/docs/models
  * - https://ai.google.dev/gemini-api/docs/pricing
  *
- * The prices of `gemini-3.7-flash` and `gemini-3.6-flash` listed below are the promotional prices
- * that are valid through December 31, 2026. They will be doubled starting January 1, 2027.
+ * The prices of `gemini-3.8-flash`, `gemini-3.7-flash` and `gemini-3.6-flash` listed below are the
+ * promotional prices that are valid through December 31, 2026. They will be doubled starting
+ * January 1, 2027.
  */
 export const GOOGLE_GEMINI_MODELS = [
+  // Gemini 3.8
+  {
+    provider: KnownModelProvider.GOOGLE,
+    name: "gemini-3.8-flash",
+    prefixes: ["gemini-3.8-flash"],
+    //
+    cost1MInputTokens: 0.75,
+    cost1MOutputTokens: 3.75,
+    cost1MCachedTokens: 0.075,
+    cost1MCachedTokensWrite: 0,
+    maxOutputTokens: 65_536,
+    maxInputTokens: 1_048_576,
+    //
+    thinking: true,
+    thinkingLevels: GEMINI_3_THINKING_LEVELS_WITHOUT_MINIMAL,
+  },
   // Gemini 3.7
   {
     provider: KnownModelProvider.GOOGLE,

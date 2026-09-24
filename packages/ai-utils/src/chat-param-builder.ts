@@ -190,7 +190,7 @@ export class ChatParamsBuilder {
    *
    * - OpenAI standard: `reasoning_effort` (or the property declared by the model metadata)
    * - Google AI: `thinkingLevel` for Gemini 3+, and `thinkingBudget` for the older models
-   * - Anthropic: `effort` (handled by the OpenAI standard branch) and the extended thinking budget
+   * - Anthropic: `output_config.effort` (handled by the OpenAI standard branch) and the extended thinking budget
    *
    * @param incrMaxOutputToken Whether the max output tokens should be increased by the resolved
    * budget, so the thinking tokens don't eat up the room of the final answer

@@ -8,14 +8,82 @@ import { KnownModelProvider, type ModelMetadata } from "./types.js";
 import { ANTHROPIC_EFFORT_LEVELS, ANTHROPIC_EFFORT_PROP } from "./anthropic-common.js";
 
 /**
- * - https://docs.anthropic.com/en/docs/about-claude/models/overview
+ * - https://platform.claude.com/docs/en/models/overview
  * - https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing
+ *
+ * `claude-mythos-5-1` and `claude-mythos-5` are invitation-only through Project Glasswing.
+ * They share the prices, limits and effort levels of `claude-fable-5-1` and `claude-fable-5`.
+ * Cache reads on Fable 5.1 and Mythos 5.1 are 0.025x the input price, and cache reads on
+ * Opus 5.5 are 0.05x. Every other model here uses the usual 0.1x multiplier.
  */
 export const ANTHROPIC_MODELS = [
   {
     provider: KnownModelProvider.ANTHROPIC,
+    name: "claude-opus-5-5",
+    prefixes: ["claude-opus-5-5"],
+    //
+    cost1MInputTokens: 4,
+    cost1MOutputTokens: 20,
+    /** 0.05x the input price. The usual cache-read multiplier is 0.1x */
+    cost1MCachedTokens: 0.2,
+    cost1MCachedTokensWrite: { shortLife: 5, longLife: 8 },
+    maxInputTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    thinking: true,
+    thinkingLevels: ANTHROPIC_EFFORT_LEVELS,
+    thinkingLevelProps: ANTHROPIC_EFFORT_PROP,
+  },
+  {
+    provider: KnownModelProvider.ANTHROPIC,
+    name: "claude-fable-5-1",
+    prefixes: ["claude-fable-5-1"],
+    //
+    cost1MInputTokens: 10,
+    cost1MOutputTokens: 50,
+    /** 0.025x the input price. The usual cache-read multiplier is 0.1x */
+    cost1MCachedTokens: 0.25,
+    cost1MCachedTokensWrite: { shortLife: 12.5, longLife: 20 },
+    maxInputTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    thinking: true,
+    thinkingLevels: ANTHROPIC_EFFORT_LEVELS,
+    thinkingLevelProps: ANTHROPIC_EFFORT_PROP,
+  },
+  {
+    provider: KnownModelProvider.ANTHROPIC,
+    name: "claude-mythos-5-1",
+    prefixes: ["claude-mythos-5-1"],
+    //
+    cost1MInputTokens: 10,
+    cost1MOutputTokens: 50,
+    /** 0.025x the input price, same as `claude-fable-5-1` */
+    cost1MCachedTokens: 0.25,
+    cost1MCachedTokensWrite: { shortLife: 12.5, longLife: 20 },
+    maxInputTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    thinking: true,
+    thinkingLevels: ANTHROPIC_EFFORT_LEVELS,
+    thinkingLevelProps: ANTHROPIC_EFFORT_PROP,
+  },
+  {
+    provider: KnownModelProvider.ANTHROPIC,
     name: "claude-fable-5",
     prefixes: ["claude-fable-5"],
+    //
+    cost1MInputTokens: 10,
+    cost1MOutputTokens: 50,
+    cost1MCachedTokens: 1,
+    cost1MCachedTokensWrite: { shortLife: 12.5, longLife: 20 },
+    maxInputTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    thinking: true,
+    thinkingLevels: ANTHROPIC_EFFORT_LEVELS,
+    thinkingLevelProps: ANTHROPIC_EFFORT_PROP,
+  },
+  {
+    provider: KnownModelProvider.ANTHROPIC,
+    name: "claude-mythos-5",
+    prefixes: ["claude-mythos-5"],
     //
     cost1MInputTokens: 10,
     cost1MOutputTokens: 50,

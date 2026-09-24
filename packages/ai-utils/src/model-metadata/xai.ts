@@ -20,7 +20,7 @@ function createTokenPrice(normal: number, longContext: number) {
 }
 
 /**
- * `grok-4.6` and newer models support `low`, `medium`, `high` (default) and `xhigh`.
+ * `grok-4.6` and later (`grok-4.7`) support `low`, `medium`, `high` (default) and `xhigh`.
  * Reasoning cannot be disabled on these models.
  * @see https://docs.x.ai/developers/model-capabilities/text/reasoning
  */
@@ -43,6 +43,20 @@ const GROK_THINKING_LEVELS = {
  * https://docs.x.ai/developers/models
  */
 export const XAI_MODELS = [
+  {
+    provider: KnownModelProvider.XAI,
+    name: "grok-4.7",
+    prefixes: ["grok-4.7"],
+    //
+    cost1MInputTokens: createTokenPrice(2, 4),
+    cost1MOutputTokens: createTokenPrice(6, 12),
+    cost1MCachedTokens: createTokenPrice(0.5, 1),
+    cost1MCachedTokensWrite: 0,
+    maxInputTokens: 500_000,
+    //
+    thinking: true,
+    thinkingLevels: GROK_THINKING_LEVELS_WITH_XHIGH,
+  },
   {
     provider: KnownModelProvider.XAI,
     name: "grok-4.6",

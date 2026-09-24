@@ -61,6 +61,7 @@ export type ModelMetadata = {
    *
    * - OpenAI spec: `reasoning_effort`
    * - Google: `thinkingLevel`
+   * - Anthropic: `output_config.effort`
    */
   thinkingLevels?: { [x in WellknownThinkingLevel]?: string };
   thinkingLevelProps?: string;

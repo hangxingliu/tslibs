@@ -1,11 +1,11 @@
 import type { ModelMetadata } from "./types.js";
 
 /**
- * Mapping to the `effort` parameter of the Claude API.
+ * Mapping to the `output_config.effort` parameter of the Claude API.
  * @see https://platform.claude.com/docs/en/build-with-claude/effort
  *
- * The `xhigh` effort level is unreachable here because the wellknown level `max` is already
- * mapped to the highest effort level (`max`) supported by these models.
+ * The API levels are `low`, `medium`, `high`, `xhigh` and `max`. There is no wellknown level for
+ * `xhigh`: `max` is mapped to the highest API level (`max`), and `minimal` is mapped to `low`.
  */
 export const ANTHROPIC_EFFORT_LEVELS = {
   minimal: "low",
@@ -21,5 +21,5 @@ export const ANTHROPIC_EFFORT_LEVELS_WITHOUT_MAX = {
   max: "high",
 } satisfies ModelMetadata["thinkingLevels"];
 
-/** In the Claude API, the effort level is a top-level field instead of the OpenAI style `reasoning_effort` */
-export const ANTHROPIC_EFFORT_PROP = "effort";
+/** The Claude API writes the effort level to `output_config.effort` */
+export const ANTHROPIC_EFFORT_PROP = "output_config.effort";

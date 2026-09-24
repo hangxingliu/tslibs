@@ -8,7 +8,7 @@ Utilities for talking to the three mainstream LLM API standards (**Google AI**, 
 | Path | Responsibility |
 | ---- | -------------- |
 | `src/types.ts` | Aliases of the request/tool types of the three SDKs |
-| `src/model-metadata/` | Static metadata (prices, limits and thinking capabilities) of the known models |
+| `src/model-metadata/` | Static metadata (prices, limits and thinking capabilities) of the known models. The active catalogs are `google.ts`, `xai.ts` and `anthropic.ts`, newest model first |
 | `src/messages-builder.ts` | Builds the message list of the three standards from the same conversation |
 | `src/chat-param-builder.ts` | Builds the complete chat completion payloads of the three standards |
 | `src/thinking-level.ts` | Maps the wellknown thinking levels into the provider specific parameters |
@@ -39,6 +39,13 @@ Utilities for talking to the three mainstream LLM API standards (**Google AI**, 
 - The tier is decided by the **size of the whole prompt** (input + cache creation tokens), and it is
   shared by all the kinds of the tokens in the same request. E.g., the output tokens of a long
   context request are billed at the long context price even if only a few tokens are generated.
+- Anthropic cache reads are usually 0.1× the input price. Claude Fable 5.1 and Claude Mythos 5.1
+  use 0.025× (`$0.25` / 1M), and Claude Opus 5.5 uses 0.05× (`$0.20` / 1M). Cache writes stay at
+  1.25× (5-minute) and 2× (1-hour).
+- The standard prices stored for `gemini-3.8-flash`, `gemini-3.7-flash` and `gemini-3.6-flash` are
+  the promotional rates valid through December 31, 2026. They double on January 1, 2027.
+- Claude Mythos 5.1 (`claude-mythos-5-1`) and Claude Mythos 5 (`claude-mythos-5`) are invitation-only
+  through Project Glasswing. Their prices and limits match Claude Fable 5.1 and Claude Fable 5.
 - `filterModelMetadata` returns the prefix matches in the same order as the given metadata array,
   which is ordered from the newest model to the oldest one. So `result[0]` is the newest matched
   model instead of the one owning the longest matched prefix.
@@ -47,9 +54,11 @@ Utilities for talking to the three mainstream LLM API standards (**Google AI**, 
 
 Two mutually exclusive mechanisms are supported by the models:
 
-1. **Thinking level** — a text value written into `reasoning_effort` (OpenAI), `effort` (Anthropic)
-   or `thinkingConfig.thinkingLevel` (Gemini 3+). Declared by `ModelMetadata.thinkingLevels` and
-   `ModelMetadata.thinkingLevelProps`.
+1. **Thinking level** — a text value written into `reasoning_effort` (OpenAI), `output_config.effort`
+   (Anthropic) or `thinkingConfig.thinkingLevel` (Gemini 3+). Declared by `ModelMetadata.thinkingLevels`
+   and `ModelMetadata.thinkingLevelProps`. Gemini 3.8 Flash, Gemini 3.7 Flash and Gemini 3.1 Pro
+   reject `minimal` (it is sent as `low`). `grok-4.6` and later accept `xhigh`, which the wellknown
+   level `max` maps to. Claude's `xhigh` effort has no wellknown level; `max` maps to Claude's `max`.
 2. **Thinking budget** — a token count written into `thinking.budget_tokens` (Anthropic) or
    `thinkingConfig.thinkingBudget` (Gemini 2). It is used only when the model doesn't accept a
    thinking level.
