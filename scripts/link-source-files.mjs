@@ -11,6 +11,12 @@ const tasks = {
     "packages/common-utils/src/strings/shell-args-escape.ts",
     "packages/common-utils/src/strings/format-date.ts",
   ],
+  "packages/repl/src/contrib": [
+    ["packages/cli-utils/src/colors/base.ts", "colors-base.ts"],
+    "packages/cli-utils/src/parse-args.ts",
+    "packages/common-utils/src/strings/shell-args-escape.ts",
+    "packages/common-utils/src/strings/shell-ansi-regex.ts",
+  ],
 };
 
 const baseDir = resolve(import.meta.dirname, "..");

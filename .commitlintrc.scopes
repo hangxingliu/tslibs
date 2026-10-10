@@ -10,4 +10,5 @@ ci
 ai-utils
 cli-utils
 common-utils
+repl
 template

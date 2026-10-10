@@ -1,0 +1,42 @@
+{
+  "name": "@hangxingliu/repl",
+  "version": "4.0.0",
+  "type": "module",
+  "license": "MIT",
+  "module": "esm/index.js",
+  "types": "esm/index.d.ts",
+  "files": [
+    "src",
+    "esm"
+  ],
+  "exports": {
+    "./esm/*.js": {
+      "import": "./esm/*.js",
+      "types": "./esm/*.d.ts"
+    },
+    "./src/*.js": {
+      "import": "./esm/*.js",
+      "types": "./esm/*.d.ts"
+    },
+    ".": {
+      "import": "./esm/index.js",
+      "types": "./esm/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "build:all": "tsc -b tsconfig.json",
+    "watch": "tsc -b tsconfig.json --watch",
+    "start": "tsc -b tsconfig.json && node esm/tests/index.js",
+    "clean": "rimraf --glob cjs esm '*.tsbuildinfo'",
+    "lint": "eslint src",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.19.7",
+    "eslint": "^10.12.0",
+    "rimraf": "^6.1.2",
+    "typescript": "^7.0.2"
+  }
+}
