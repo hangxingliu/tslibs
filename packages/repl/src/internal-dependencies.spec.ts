@@ -1,3 +1,4 @@
+import { describe, it } from "bun:test";
 import { ok } from "node:assert";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";

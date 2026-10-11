@@ -1,3 +1,4 @@
+import { describe, it, beforeEach, afterEach } from "bun:test";
 import { deepStrictEqual, match, rejects, strictEqual, ok } from "node:assert";
 //
 import { createFakeTTY } from "./__tests__/fake-tty.js";

@@ -1,3 +1,4 @@
+import { describe, it } from "bun:test";
 import { deepStrictEqual, match, ok, rejects, strictEqual } from "node:assert";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";

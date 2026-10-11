@@ -1,3 +1,4 @@
+import { describe, it } from "bun:test";
 import { strictEqual, ok } from "node:assert";
 import { Writable } from "node:stream";
 import { createFakeTTY } from "./__tests__/fake-tty.js";

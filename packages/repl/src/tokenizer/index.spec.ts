@@ -1,3 +1,4 @@
+import { describe, it } from "bun:test";
 import { deepStrictEqual } from "assert";
 import type { Arg, ArgRange, ArgQuote } from "../index.js";
 import { CommandArgsTokenizer, CommandArgs } from "../index.js";

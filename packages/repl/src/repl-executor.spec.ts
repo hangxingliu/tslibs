@@ -1,3 +1,4 @@
+import { describe, it } from "bun:test";
 import { deepStrictEqual, strictEqual, match } from "node:assert";
 import { CommandExit } from "./defaults/cmd-exit.js";
 import { REPLExecutor } from "./repl-executor.js";

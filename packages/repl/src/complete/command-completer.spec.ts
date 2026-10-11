@@ -1,3 +1,4 @@
+import { describe, it } from "bun:test";
 import { deepStrictEqual, rejects } from "node:assert";
 import { DefaultVarResolver } from "../defaults/vars.js";
 import { CommandArgsTokenizer } from "../tokenizer/types.js";
