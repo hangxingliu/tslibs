@@ -4,286 +4,277 @@
  *   Authors:  Liu Yue <hangxingliu@gmail.com>
  *   ORCID:    https://orcid.org/0009-0007-6518-185X
  *   --------------------------------------------------------------------------------------   */
-import { start } from "repl";
-import { inspect } from "util";
-import type { REPLServer, REPLEval } from "repl";
-import type { AsyncCompleter } from "readline";
-//
 import { BASIC_COLORS } from "./contrib/colors-base.js";
+import type { CommandCompleterOptions } from "./complete/command-completer.js";
+import { CommandCompleter } from "./complete/command-completer.js";
+import {
+  DEFAULT_HISTORY_LIMIT,
+  HistoryFileWriter,
+  loadHistoryFile,
+  validateHistoryLimit,
+} from "./readline/history-file.js";
+import { LineReader } from "./readline/index.js";
+import type { InputLineOptions } from "./readline/types.js";
+import { REPLExecutor } from "./repl-executor.js";
 //
-import { CommandArgs } from "./tokenizer/index.js";
-import type { VarCompletionContext, VarResolver } from "./tokenizer/types.js";
-import { CommandArgsTokenizer } from "./tokenizer/types.js";
-import type { CommandInterface, CompletionResult, REPLOptions, SharedDataBase } from "./types.js";
-import { CommandFlags, SYMBOL_PRINT_HELP } from "./types.js";
+import { CommandArgsTokenizer, type VarResolver } from "./tokenizer/types.js";
+import { CommandFlags, type CommandInterface, type REPLOptions, type SharedDataBase } from "./types.js";
+import { getDefaultHistoryFileErrorHandler } from "./defaults/error-handlers.js";
 
-const { BOLD, RED, GREEN, RESET } = BASIC_COLORS;
+const { BOLD, GREEN, RESET } = BASIC_COLORS;
 
+/** A command-oriented REPL backed by node:readline, compatible with Node and Bun. */
 export class REPL {
-  static readonly REGEXP_CMD = /^[\w-_\?]+$/;
-  static readonly REGEXP_CMD_MATCH = /^\s*([\w-_\?]+)(\s*)/;
-  static readonly REGEXP_CMD_LOOSE_MATCH = /^\s*(\S+)(\s*)/;
-  static readonly COMMANDS_EXIT = new Set([".exit", "exit", "quit"]);
+  /** The instance used by static loggers and `REPL.inputLine()`; see {@link active}. */
+  private static activeREPL?: REPL;
+  /** A temporary reader created by `REPL.inputLine()` when no REPL instance is active. */
+  private static standaloneReader?: LineReader;
 
   static getDefaultSharedData(): SharedDataBase {
-    return { repl: undefined, lastResult: undefined, commandMetas: [] };
-  }
-  static getCmdName(cmd: string, looseMode: boolean) {
-    const match = cmd.match(looseMode ? REPL.REGEXP_CMD_LOOSE_MATCH : REPL.REGEXP_CMD_MATCH);
-    if (!match) return;
-    const rest = cmd.slice(match[0].length).replace(/\r?\n/, "");
-    return { name: match[1], rest };
+    return { lastResult: undefined, commandMetas: [] };
   }
 
-  private static activeREPL?: REPLServer;
+  /** Prints above the live input without disturbing it. Prefer these loggers over `console.*` for async output. */
+  static readonly log = (...args: unknown[]) => REPL.print(() => console.log(...args));
+  static readonly error = (...args: unknown[]) => REPL.print(() => console.error(...args));
+  static readonly warn = (...args: unknown[]) => REPL.print(() => console.warn(...args));
 
-  //
-  //#region logger
-  private static refreshPromptTimer: any;
-  private static readonly refreshPrompt = () => {
-    delete REPL.refreshPromptTimer;
-    const repl = REPL.activeREPL;
-    if (!repl) return;
-    repl.displayPrompt(true);
-  };
-  private static readonly delayRefreshPrompt = () => {
-    if (REPL.refreshPromptTimer) return;
-    REPL.refreshPromptTimer = process.nextTick(REPL.refreshPrompt);
-  };
+  private static print(write: () => void) {
+    const reader = REPL.activeREPL?.reader ?? REPL.standaloneReader;
+    if (reader) reader.printAbove(write);
+    else write();
+  }
 
-  static readonly log = (...args: unknown[]) => {
-    // repl.getCursorPos().cols;
-    process.stdout.write(RESET + "\x1b[2K\r");
-    console.log(...args);
-    process.stdout.write(RESET);
-    this.delayRefreshPrompt();
-  };
-  static readonly error = (...args: unknown[]) => {
-    process.stderr.write(RESET + "\x1b[2K\r");
-    console.error(...args);
-    process.stderr.write(RESET);
-    this.delayRefreshPrompt();
-  };
-  static readonly warn = (...args: unknown[]) => {
-    process.stderr.write(RESET + "\x1b[2K\r");
-    console.warn(...args);
-    process.stderr.write(RESET);
-    this.delayRefreshPrompt();
-  };
-  //#endregion logger
-  //
+  /**
+   * Asks an interactive question. Delegates to the active instance (only allowed while a command is running);
+   * without an active instance it creates a temporary interface on stdin/stdout and closes it after one answer.
+   * @throws {REPLInputCancelledError} (rejection) on Ctrl+C, Ctrl+D or EOF
+   * @example
+   * const password = await REPL.inputLine({ prompt: "Password: ", password: true });
+   */
+  static async inputLine(options?: InputLineOptions): Promise<string> {
+    if (REPL.activeREPL) return REPL.activeREPL.inputLine(options);
+    if (REPL.standaloneReader) throw new Error("An inputLine() call is already pending");
+    const reader = new LineReader({ input: process.stdin, output: process.stdout });
+    REPL.standaloneReader = reader;
+    try {
+      reader.enterBusy();
+      return await reader.inputLine(options);
+    } finally {
+      reader.close();
+      REPL.standaloneReader = undefined;
+    }
+  }
 
-  private commandNames: string[];
-  private commandsMap = new Map<string | null, CommandInterface>();
-  private tokenizerMap = new Map<string, CommandArgsTokenizer>();
-  private commands = new Set([".exit", "help"]);
-
-  private defaultTokenizer: CommandArgsTokenizer;
-
-  private fallbackHandler?: CommandInterface;
-  private helpHandler?: CommandInterface;
-
+  private readonly commandsMap = new Map<string, CommandInterface>();
+  private readonly tokenizerMap = new Map<string, CommandArgsTokenizer>();
+  private readonly defaultTokenizer: CommandArgsTokenizer;
+  private readonly completer: CommandCompleter;
+  private readonly executor: REPLExecutor;
   private varResolver?: VarResolver;
+  private reader?: LineReader;
+  private started = false;
 
-  private readonly looseCmdName: boolean;
+  /**
+   * Whether a command handler is executing; instance `inputLine()` is only allowed in this state.
+   */
+  private runningCommand = false;
 
   constructor(
     commands: CommandInterface[],
-    private readonly sharedData = REPL.getDefaultSharedData(),
-    options?: REPLOptions
+    sharedData = REPL.getDefaultSharedData(),
+    private readonly options: REPLOptions = {}
   ) {
-    const opts: Required<REPLOptions> = {
-      tokenizer: CommandArgsTokenizer.simple,
-      looseCmdName: false,
-      ...(options || {}),
-    };
-    this.looseCmdName = opts.looseCmdName;
-    this.defaultTokenizer = opts.tokenizer;
-
+    this.defaultTokenizer = options.tokenizer ?? CommandArgsTokenizer.simple;
     sharedData.commandMetas = [];
-    commands.forEach((it) => {
-      const meta = it.getMeta();
-      if (it.connect) it.connect(sharedData);
-      sharedData.commandMetas.push(meta);
-      meta.match?.forEach((cmd) => {
-        this.commands.add(cmd);
-        this.commandsMap.set(cmd, it);
-        if (meta.tokenizer) this.tokenizerMap.set(cmd, meta.tokenizer);
-      });
-      switch (meta.flag) {
-        case CommandFlags.help:
-          this.helpHandler = it;
-          break;
-        case CommandFlags.fallback:
-          this.fallbackHandler = it;
-          break;
-      }
-    });
 
-    this.commandNames = Array.from(this.commands).filter((it) => it);
+    let fallbackHandler: CommandInterface | undefined;
+    let helpHandler: CommandInterface | undefined;
+    for (const command of commands) {
+      const meta = command.getMeta();
+      command.connect?.(sharedData);
+      sharedData.commandMetas.push(meta);
+      for (const name of meta.match ?? []) {
+        this.commandsMap.set(name, command);
+        if (meta.tokenizer !== undefined) this.tokenizerMap.set(name, meta.tokenizer);
+      }
+      if (meta.flag === CommandFlags.help) helpHandler = command;
+      if (meta.flag === CommandFlags.fallback) fallbackHandler = command;
+    }
+
+    const commonArgs = {
+      commandNames: [...this.commandsMap.keys()],
+      commandsMap: this.commandsMap,
+      getTokenizer: this.getTokenizer.bind(this),
+      getVarResolver: () => this.varResolver,
+      looseCmdName: options.looseCmdName ?? false,
+    } satisfies CommandCompleterOptions;
+
+    this.completer = new CommandCompleter(commonArgs);
+    this.executor = new REPLExecutor({
+      ...commonArgs,
+      sharedData,
+      fallbackHandler,
+      helpHandler,
+      //
+      log: REPL.log,
+      error: REPL.error,
+    });
     if (sharedData.vars) this.enableVariableResolver(sharedData.vars);
   }
 
-  readonly start = () => {
-    const repl = start({
-      prompt: this.buildReplPrompt(),
-      eval: this.execReplCommand,
-      completer: this.getReplCompletion,
-      ignoreUndefined: true,
-      terminal: true,
-      useGlobal: false,
-      useColors: true,
+  /**
+   * Starts the command loop. It can only be called once per instance.
+   * Resolves when the REPL closes (EOF, Ctrl+D, double Ctrl+C or a command returning `SYMBOL_EXIT`),
+   * after calling `onExit` once; `onExit` defaults to `process.exit(0)`.
+   */
+  readonly start = async (): Promise<void> => {
+    if (this.started) throw new Error("REPL has already been started");
+    this.started = true;
+
+    // History is optional: without `options.history` it lives only in memory for this session.
+    // Lines loaded from the file are truncated to `historySize`; the writer receives the newest
+    // loaded entry so the first appended line is not a duplicate of the file's last line.
+    const onHistoryError = this.options.history?.onError ?? getDefaultHistoryFileErrorHandler(REPL.warn);
+    const historySize = validateHistoryLimit(this.options.history?.limit ?? DEFAULT_HISTORY_LIMIT);
+    const historyItems = this.options.history
+      ? loadHistoryFile(this.options.history.filePath, { limit: historySize, onError: onHistoryError })
+      : [];
+    const historyWriter = this.options.history
+      ? new HistoryFileWriter(this.options.history.filePath, onHistoryError, historyItems.at(-1))
+      : undefined;
+
+    /** Aborts the running command; `undefined` between commands */
+    let controller: AbortController | undefined;
+    /** Ctrl+C received after a line was accepted but before its controller was created */
+    let pendingInterrupts = 0;
+    let exitCalled = false;
+    /** Calls `onExit` at most once, whichever path (EOF, `SYMBOL_EXIT`, double Ctrl+C) gets here first */
+    const exit = () => {
+      if (exitCalled) return;
+      exitCalled = true;
+      (this.options.onExit ?? (() => process.exit(0)))();
+    };
+
+    /** Stops waiting for the running command handler (the handler itself cannot be cancelled forcibly) */
+    let forceExit: (() => void) | undefined;
+
+    // The first Ctrl+C during a command aborts its signal, the second one exits immediately
+    const interrupt = () => {
+      // Busy mode starts inside `readLine()` before the controller exists; defer the interrupt
+      // so it is replayed by the loop right after the controller is created
+      if (!controller) {
+        pendingInterrupts++;
+        return;
+      }
+      if (!controller.signal.aborted) {
+        controller.abort();
+        reader.printAbove(() => (this.options.output ?? process.stdout).write("^C\n"));
+      } else {
+        // The handler ignored the abort signal: stop waiting for it and exit
+        reader.close();
+        forceExit?.();
+        exit();
+      }
+    };
+
+    const reader = new LineReader({
+      input: this.options.input ?? process.stdin,
+      output: this.options.output ?? process.stdout,
+      history: historyItems,
+      historySize,
+      completer: (line) => this.completer.complete(line),
+      onInterrupt: interrupt,
     });
-    this.sharedData.repl = repl;
-    REPL.activeREPL = repl;
+    this.reader = reader;
+    // Route static loggers and `REPL.inputLine()` to this instance
+    this.active();
+
+    try {
+      while (!exitCalled) {
+        // Resolves with a queued type-ahead line immediately if one exists; `null` means EOF/Ctrl+D/closed
+        const line = await reader.readLine(this.buildFullPrompt());
+        if (line === null) break;
+
+        // Record into in-memory history (for arrow keys) and persist to the history file
+        reader.recordCommand(line);
+        historyWriter?.append(line);
+        // `readLine()` already switched to busy mode; this call is an idempotent safeguard
+        reader.enterBusy();
+
+        controller = new AbortController();
+        // Replay Ctrl+C presses received before the controller existed:
+        // one aborts the signal, a second one exits (see `interrupt`)
+        while (pendingInterrupts > 0) {
+          pendingInterrupts--;
+          interrupt();
+        }
+        if (exitCalled) break;
+        this.runningCommand = true;
+        // Resolves with `null` when `forceExit` is called, letting the race below skip a stuck handler
+        const forced = new Promise<null>((resolve) => {
+          forceExit = () => resolve(null);
+        });
+
+        try {
+          const result = await Promise.race([this.executor.execute(line, { signal: controller.signal }), forced]);
+          // `null`: forced exit by a second Ctrl+C; `exit`: the handler returned `SYMBOL_EXIT`
+          if (result === null || result.exit) break;
+        } finally {
+          // Reset per-command state and return the reader to prompt mode (keeps any type-ahead input)
+          this.runningCommand = false;
+          controller = undefined;
+          forceExit = undefined;
+          reader.leaveBusy();
+        }
+      }
+    } finally {
+      // Runs on every termination path, including errors thrown by `readLine()` (e.g. input stream errors)
+      reader.close();
+      this.reader = undefined;
+      if (REPL.activeREPL === this) REPL.activeREPL = undefined;
+      exit();
+    }
   };
+
+  /** Selects this instance as the target of static loggers and `REPL.inputLine()`. `start()` calls it implicitly. */
   readonly active = () => {
-    REPL.activeREPL = this.sharedData.repl;
+    REPL.activeREPL = this;
   };
   readonly enableVariableResolver = (resolver: VarResolver) => {
     this.varResolver = resolver;
   };
 
-  buildReplPrompt = () => {
-    return GREEN + BOLD + "$ " + RESET;
-  };
+  /** Override to customize the command prompt (without the status line). */
+  buildReplPrompt = () => GREEN + BOLD + "$ " + RESET;
 
-  getTokenizer(cmdName: string) {
-    const tokenizer = this.tokenizerMap.get(cmdName);
-    if (typeof tokenizer !== "undefined") return tokenizer;
-    return this.defaultTokenizer;
+  /**
+   * Composes the status line (TTY only) and the command prompt as one multiline readline prompt.
+   * @example "/home/user | 10:00:00\x1b[0m\n\x1b[32m\x1b[1m$ \x1b[0m"
+   */
+  buildFullPrompt() {
+    const prompt = this.buildReplPrompt();
+    if (!this.reader?.terminal) return prompt;
+    const status = this.options.statusLine?.();
+    return status ? `${status.replace(/[\r\n]/g, " ")}${RESET}\n${prompt}` : prompt;
   }
 
-  private readonly execReplCommand: REPLEval = (evalCmd, context, file, cb) => {
-    const buildReplPrompt = this.buildReplPrompt.bind(this);
-    const { sharedData, commandsMap, fallbackHandler, commandNames, helpHandler, varResolver } = this;
-    const parsed = REPL.getCmdName(evalCmd, this.looseCmdName);
-    if (!parsed) return cb(null, undefined);
+  /** Re-evaluates the status line while waiting for a command, preserving typed input. No-op otherwise. */
+  refreshPrompt() {
+    if (this.reader?.isPrompt) this.reader.refreshPrompt(this.buildFullPrompt());
+  }
 
-    const { name: cmdName, rest } = parsed;
-    const tokenizer = this.getTokenizer(cmdName);
+  /**
+   * Asks an interactive question; only allowed while a command of this instance is running.
+   * @see REPL.inputLine
+   */
+  inputLine(options?: InputLineOptions): Promise<string> {
+    if (!this.runningCommand || !this.reader)
+      return Promise.reject(new Error("inputLine() can only be called while a command is running"));
+    return this.reader.inputLine(options);
+  }
 
-    return handle()
-      .then((result) => {
-        if (typeof result !== "undefined") {
-          sharedData.lastResult = result;
-          console.log(inspect(result));
-        } else {
-          sharedData.lastResult = undefined;
-        }
-        callback();
-      })
-      .catch((error) => {
-        console.error(error);
-        if (typeof error.message === "string") {
-          const HEAD = RED + BOLD + "Error: " + RESET;
-          console.error(HEAD + RED + error.message + RESET);
-        }
-        callback();
-      });
-
-    function callback() {
-      const repl = sharedData.repl;
-      if (repl) repl.setPrompt(buildReplPrompt());
-      cb(null, undefined);
-    }
-    async function handle() {
-      if (REPL.COMMANDS_EXIT.has(cmdName)) return process.exit(0);
-
-      let isDefaultCmd = false;
-      let handler = commandsMap.get(cmdName);
-      if (!handler && fallbackHandler) {
-        isDefaultCmd = true;
-        handler = fallbackHandler;
-      }
-      if (!handler) {
-        console.error(RED + `Unknown command: "${cmdName}"` + RESET);
-        console.error(`Commands: ${commandNames.join()}`);
-        return;
-      }
-
-      let result: unknown;
-      const repl = sharedData.repl;
-      const cmd = new CommandArgs(rest, tokenizer);
-      cmd.enableVarResolver(varResolver);
-      if (repl) {
-        repl.pause();
-        try {
-          result = await handler.onCommand(cmdName, cmd);
-        } catch (error) {
-          repl.resume();
-          throw error;
-        }
-        repl.resume();
-      }
-      if (result === SYMBOL_PRINT_HELP && helpHandler) {
-        const cmd = new CommandArgs(isDefaultCmd ? "" : cmdName, CommandArgsTokenizer.simple);
-        await helpHandler.onCommand(helpHandler.getMeta().match![0], cmd);
-        return;
-      }
-      return result;
-    }
-  };
-
-  private readonly completeVar = (varContext: VarCompletionContext): Promise<CompletionResult> => {
-    const vars = this.varResolver!.keys(varContext.varName);
-    let result: string[];
-    if (varContext.suffix) result = vars.map((it) => `${it}}`);
-    else result = vars;
-    return Promise.resolve({ result, matched: varContext.varName });
-  };
-
-  private readonly getReplCompletion: AsyncCompleter = (prefix: string, callback) => {
-    const { commandNames, commandsMap, varResolver } = this;
-    const match = prefix.match(REPL.REGEXP_CMD_MATCH);
-    const completeCmdName = match ? !match[2] : true;
-    if (completeCmdName) {
-      const prefix = match ? match[1] : "";
-      let names = commandNames;
-      if (prefix.length > 0) names = names.filter((it) => it.toLowerCase().startsWith(prefix.toLowerCase()));
-      return callback(null, [names.map((it) => `${it} `), prefix]);
-    }
-
-    const { name, rest } = REPL.getCmdName(prefix, this.looseCmdName)!;
-    const handler = commandsMap.get(name);
-
-    if (!handler) return callback(null, [[], prefix]);
-
-    const tokenizer = this.getTokenizer(name);
-    const cmd = new CommandArgs(rest, tokenizer);
-
-    let thenable: ReturnType<Required<CommandInterface>["onCompletion"]> | undefined;
-    if (varResolver) {
-      cmd.enableVarResolver(varResolver);
-      const vars = cmd.varCompletionContext;
-      if (vars) thenable = this.completeVar(vars);
-    }
-    if (!thenable) {
-      if (!handler.onCompletion) return callback(null, [[], ""]);
-      thenable = handler.onCompletion(name, cmd);
-    }
-
-    thenable
-      .then((c) => {
-        const index = cmd.completionIndex;
-        const arg = cmd.args[index];
-        let matched = "";
-        if (arg) {
-          const to = arg.to ?? cmd.raw.length;
-          matched = cmd.raw.slice(arg.from, to);
-        }
-
-        let result: string[];
-        if (Array.isArray(c)) {
-          result = c;
-        } else if (c) {
-          if (typeof c.matched === "string") matched = c.matched;
-          result = c.result;
-        } else {
-          result = [];
-        }
-        return callback(null, [result, matched]);
-      })
-      .catch((error) => callback(error));
-  };
+  getTokenizer(cmdName: string) {
+    return this.tokenizerMap.get(cmdName) ?? this.defaultTokenizer;
+  }
 }

@@ -11,6 +11,7 @@ out
 
 docs/ai-tasks
 docs/ai-chats
+docs/ai-plans-local
 
 /.venv.sh
 /*-agent.yml
