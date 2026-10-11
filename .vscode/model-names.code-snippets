@@ -1,0 +1,17 @@
+{
+  "Model Name: Claude Opus": {
+    "scope": "yaml",
+    "prefix": "opus",
+    "body": "claude-opus-5.5",
+  },
+  "Model Name: GPT Sol": {
+    "scope": "yaml",
+    "prefix": "gpt-sol",
+    "body": "gpt-6.1-sol",
+  },
+  "Model Name: Grok": {
+    "scope": "yaml",
+    "prefix": "grok",
+    "body": "grok-4.7",
+  },
+}
