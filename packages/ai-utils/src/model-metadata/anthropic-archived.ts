@@ -20,8 +20,9 @@ export const ANTHROPIC_ARCHIVED_MODELS = [
     //
     cost1MInputTokens: 5,
     cost1MOutputTokens: 25,
-    cost1MCachedTokens: 1.5,
-    cost1MCachedTokensWrite: { shortLife: 18.75, longLife: 30 },
+    cost1MCachedTokens: 0.5,
+    cost1MCachedTokensWrite: { shortLife: 6.25, longLife: 10 },
+    maxInputTokens: 200_000,
     maxOutputTokens: 64_000,
     thinking: true,
     thinkingLevels: ANTHROPIC_EFFORT_LEVELS_WITHOUT_MAX,

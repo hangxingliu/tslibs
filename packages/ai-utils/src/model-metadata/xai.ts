@@ -20,9 +20,10 @@ function createTokenPrice(normal: number, longContext: number) {
 }
 
 /**
- * `grok-4.6` and later (`grok-4.7`) support `low`, `medium`, `high` (default) and `xhigh`.
+ * `grok-4.5`, `grok-4.6` and `grok-4.7` accept `low`, `medium`, `high` (default) and `xhigh`.
  * Reasoning cannot be disabled on these models.
  * @see https://docs.x.ai/developers/model-capabilities/text/reasoning
+ * @see https://docs.x.ai/developers/models/grok-4.5
  */
 const GROK_THINKING_LEVELS_WITH_XHIGH = {
   minimal: "low",
@@ -32,10 +33,18 @@ const GROK_THINKING_LEVELS_WITH_XHIGH = {
   max: "xhigh",
 } satisfies ModelMetadata["thinkingLevels"];
 
-/** `xhigh` is not available on these models, and it is treated as `high` by xAI */
-const GROK_THINKING_LEVELS = {
-  ...GROK_THINKING_LEVELS_WITH_XHIGH,
-  max: "high",
+/**
+ * `grok-4.3` accepts `none`, `low`, `medium`, `high` and `xhigh`.
+ * `none` disables reasoning. The default effort is `low`.
+ * @see https://docs.x.ai/developers/models/grok-4.3
+ */
+const GROK_4_3_THINKING_LEVELS = {
+  off: "none",
+  minimal: "low",
+  low: "low",
+  medium: "medium",
+  high: "high",
+  max: "xhigh",
 } satisfies ModelMetadata["thinkingLevels"];
 
 /**
@@ -74,7 +83,8 @@ export const XAI_MODELS = [
   {
     provider: KnownModelProvider.XAI,
     name: "grok-4.5",
-    prefixes: ["grok-4.5"],
+    /** `grok-build-latest` is an alias of this model, not of `grok-build-0.1` */
+    prefixes: ["grok-4.5", "grok-build-latest"],
     //
     cost1MInputTokens: createTokenPrice(2, 4),
     cost1MOutputTokens: createTokenPrice(6, 12),
@@ -83,7 +93,7 @@ export const XAI_MODELS = [
     maxInputTokens: 500_000,
     //
     thinking: true,
-    thinkingLevels: GROK_THINKING_LEVELS,
+    thinkingLevels: GROK_THINKING_LEVELS_WITH_XHIGH,
   },
   {
     provider: KnownModelProvider.XAI,
@@ -97,12 +107,13 @@ export const XAI_MODELS = [
     maxInputTokens: 1_000_000,
     //
     thinking: true,
-    thinkingLevels: GROK_THINKING_LEVELS,
+    thinkingLevels: GROK_4_3_THINKING_LEVELS,
   },
   {
     provider: KnownModelProvider.XAI,
     name: "grok-build-0.1",
-    prefixes: ["grok-build"],
+    /** `grok-code-fast-1`, `grok-code-fast` and `grok-code-fast-1-0825` are aliases of this model */
+    prefixes: ["grok-build", "grok-code-fast"],
     //
     cost1MInputTokens: createTokenPrice(1, 2),
     cost1MOutputTokens: createTokenPrice(2, 4),

@@ -21,8 +21,9 @@ const GEMINI_3_THINKING_LEVELS = {
 } satisfies ModelMetadata["thinkingLevels"];
 
 /**
- * `minimal` is rejected by Gemini 3.8 Flash, Gemini 3.7 Flash and Gemini 3.1 Pro.
+ * `minimal` is rejected by Gemini 3.8 Flash and Gemini 3.1 Pro.
  * It is mapped to `low`, the lowest level those models accept.
+ * `gemini-3.7-flash` is routed to `gemini-3.8-flash`, so it uses the same levels.
  */
 const GEMINI_3_THINKING_LEVELS_WITHOUT_MINIMAL = {
   ...GEMINI_3_THINKING_LEVELS,
@@ -33,9 +34,10 @@ const GEMINI_3_THINKING_LEVELS_WITHOUT_MINIMAL = {
  * - https://ai.google.dev/gemini-api/docs/models
  * - https://ai.google.dev/gemini-api/docs/pricing
  *
- * The prices of `gemini-3.8-flash`, `gemini-3.7-flash` and `gemini-3.6-flash` listed below are the
- * promotional prices that are valid through December 31, 2026. They will be doubled starting
- * January 1, 2027.
+ * The prices of `gemini-3.8-flash` and `gemini-3.6-flash` listed below are the promotional prices
+ * that are valid through December 31, 2026. They will be doubled starting January 1, 2027.
+ * Requests to `gemini-3.7-flash` are routed to `gemini-3.8-flash`, and requests to
+ * `gemini-3.5-flash` are routed to `gemini-3.6-flash`, so those entries use the same promotional prices.
  */
 export const GOOGLE_GEMINI_MODELS = [
   // Gemini 3.8
@@ -54,7 +56,7 @@ export const GOOGLE_GEMINI_MODELS = [
     thinking: true,
     thinkingLevels: GEMINI_3_THINKING_LEVELS_WITHOUT_MINIMAL,
   },
-  // Gemini 3.7
+  // Gemini 3.7. Requests to this id are routed to `gemini-3.8-flash`.
   {
     provider: KnownModelProvider.GOOGLE,
     name: "gemini-3.7-flash",
@@ -106,10 +108,10 @@ export const GOOGLE_GEMINI_MODELS = [
     provider: KnownModelProvider.GOOGLE,
     name: "gemini-3.5-flash",
     prefixes: ["gemini-3.5-flash"],
-    //
-    cost1MInputTokens: 1.5,
-    cost1MOutputTokens: 9,
-    cost1MCachedTokens: 0.15,
+    // Requests to this id are routed to `gemini-3.6-flash` and billed at its promotional prices.
+    cost1MInputTokens: 0.75,
+    cost1MOutputTokens: 3.75,
+    cost1MCachedTokens: 0.075,
     cost1MCachedTokensWrite: 0,
     maxOutputTokens: 65_536,
     maxInputTokens: 1_048_576,

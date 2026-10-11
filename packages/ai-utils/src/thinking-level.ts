@@ -32,7 +32,8 @@ function getThinkingLevel(
   if (!model.thinking) return;
   if (!model.thinkingLevels) return; // this model doesn't support thinking levels
   if (model.thinking === "force") return; // this model doesn't accept any thinking parameter
-  if (level === "off") return;
+  // `off` is sent only when the model can disable reasoning (for example xAI `none`).
+  if (level === "off") return model.thinkingLevels.off;
 
   if (level === "dynamic") {
     if (!dynamicFallback || dynamicFallback === "dynamic") return;

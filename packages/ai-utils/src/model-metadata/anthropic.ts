@@ -8,13 +8,17 @@ import { KnownModelProvider, type ModelMetadata } from "./types.js";
 import { ANTHROPIC_EFFORT_LEVELS, ANTHROPIC_EFFORT_PROP } from "./anthropic-common.js";
 
 /**
- * - https://platform.claude.com/docs/en/models/overview
+ * - https://platform.claude.com/docs/en/about-claude/models/overview
+ * - https://platform.claude.com/docs/en/about-claude/pricing
  * - https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing
  *
- * `claude-mythos-5-1` and `claude-mythos-5` are invitation-only through Project Glasswing.
- * They share the prices, limits and effort levels of `claude-fable-5-1` and `claude-fable-5`.
- * Cache reads on Fable 5.1 and Mythos 5.1 are 0.025x the input price, and cache reads on
- * Opus 5.5 are 0.05x. Every other model here uses the usual 0.1x multiplier.
+ * `claude-mythos-5-1` and `claude-mythos-5` are limited to organizations verified through
+ * Anthropic's verification programs. They share the prices, limits and effort levels of
+ * `claude-fable-5-1` and `claude-fable-5`.
+ * Cache reads on Fable 5.1 and Mythos 5.1 are 0.025x the input price. Cache reads on Opus 5.5
+ * and Sonnet 5.5 are 0.05x. Every other model here uses the usual 0.1x multiplier.
+ * `claude-haiku-5-5` uses a higher price for every token kind once the prompt exceeds 100,000
+ * tokens. That prompt length includes cache reads and cache writes.
  */
 export const ANTHROPIC_MODELS = [
   {
@@ -112,6 +116,22 @@ export const ANTHROPIC_MODELS = [
   },
   {
     provider: KnownModelProvider.ANTHROPIC,
+    name: "claude-sonnet-5-5",
+    prefixes: ["claude-sonnet-5-5"],
+    //
+    cost1MInputTokens: 2,
+    cost1MOutputTokens: 10,
+    /** 0.05x the input price, same multiplier as `claude-opus-5-5` */
+    cost1MCachedTokens: 0.1,
+    cost1MCachedTokensWrite: { shortLife: 2.5, longLife: 4 },
+    maxInputTokens: 1_000_000,
+    maxOutputTokens: 128_000,
+    thinking: true,
+    thinkingLevels: ANTHROPIC_EFFORT_LEVELS,
+    thinkingLevelProps: ANTHROPIC_EFFORT_PROP,
+  },
+  {
+    provider: KnownModelProvider.ANTHROPIC,
     name: "claude-sonnet-5",
     prefixes: ["claude-sonnet-5"],
     //
@@ -167,7 +187,40 @@ export const ANTHROPIC_MODELS = [
     cost1MCachedTokens: 0.3,
     cost1MCachedTokensWrite: { shortLife: 3.75, longLife: 6 },
     maxInputTokens: 1_000_000,
-    maxOutputTokens: 64_000,
+    maxOutputTokens: 128_000,
+    thinking: true,
+    thinkingLevels: ANTHROPIC_EFFORT_LEVELS,
+    thinkingLevelProps: ANTHROPIC_EFFORT_PROP,
+  },
+  {
+    provider: KnownModelProvider.ANTHROPIC,
+    name: "claude-haiku-5-5",
+    prefixes: ["claude-haiku-5-5"],
+    // A prompt over 100,000 tokens (input + cache reads + cache writes) is billed at the higher rate.
+    cost1MInputTokens: [
+      { gt: 100_000, price: 0.5 },
+      { gt: 0, price: 0.1 },
+    ],
+    cost1MOutputTokens: [
+      { gt: 100_000, price: 2.5 },
+      { gt: 0, price: 0.5 },
+    ],
+    cost1MCachedTokens: [
+      { gt: 100_000, price: 0.05 },
+      { gt: 0, price: 0.01 },
+    ],
+    cost1MCachedTokensWrite: {
+      shortLife: [
+        { gt: 100_000, price: 0.625 },
+        { gt: 0, price: 0.125 },
+      ],
+      longLife: [
+        { gt: 100_000, price: 1 },
+        { gt: 0, price: 0.2 },
+      ],
+    },
+    maxInputTokens: 1_000_000,
+    maxOutputTokens: 128_000,
     thinking: true,
     thinkingLevels: ANTHROPIC_EFFORT_LEVELS,
     thinkingLevelProps: ANTHROPIC_EFFORT_PROP,

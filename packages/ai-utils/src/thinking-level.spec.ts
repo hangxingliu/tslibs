@@ -43,6 +43,13 @@ describe("setReasoningEffortForOpenAI", () => {
     expect(setReasoningEffortForOpenAI(payload, model, "off")).toBeUndefined();
     expect(payload).toEqual({});
   });
+
+  test("should write the mapped value when the model can disable reasoning", () => {
+    const model: ModelMetadata = { ...BASE_MODEL, thinking: true, thinkingLevels: { off: "none", low: "low" } };
+    const payload: any = {};
+    expect(setReasoningEffortForOpenAI(payload, model, "off")).toBe("none");
+    expect(payload).toEqual({ reasoning_effort: "none" });
+  });
 });
 
 describe("setThinkingLevelForGoogleAI", () => {

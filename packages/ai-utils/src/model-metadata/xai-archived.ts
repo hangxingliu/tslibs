@@ -42,18 +42,6 @@ export const XAI_ARCHIVED_MODELS = [
   },
   {
     provider: KnownModelProvider.XAI,
-    name: "grok-code-fast-1",
-    prefixes: ["grok-code-fast"],
-    //
-    cost1MInputTokens: 0.2,
-    cost1MOutputTokens: 1.5,
-    cost1MCachedTokens: 0.02,
-    cost1MCachedTokensWrite: 0,
-    thinking: true,
-    thinkingLevels: LEGACY_GROK_THINKING_LEVELS,
-  },
-  {
-    provider: KnownModelProvider.XAI,
     name: "grok-4-0709",
     prefixes: ["grok-4"],
     //

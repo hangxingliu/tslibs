@@ -48,6 +48,13 @@ describe("filterModelMetadata", () => {
   test("should return an empty array for an unknown model", () => {
     expect(filterModelMetadata("unknown-model-name", ALL_MODELS)).toEqual([]);
   });
+
+  test("should resolve the current model aliases", () => {
+    expect(filterModelMetadata("claude-sonnet-5-5-latest", ALL_MODELS)[0].name).toBe("claude-sonnet-5-5");
+    expect(filterModelMetadata("grok-build-latest", ALL_MODELS)[0].name).toBe("grok-4.5");
+    expect(filterModelMetadata("grok-code-fast-1", ALL_MODELS)[0].name).toBe("grok-build-0.1");
+    expect(filterModelMetadata("grok-code-fast-1-0825", ALL_MODELS)[0].name).toBe("grok-build-0.1");
+  });
 });
 
 describe("calcTokenCost", () => {
@@ -79,5 +86,26 @@ describe("calcTokenCost", () => {
 
   test("should calculate the output tokens", () => {
     expect(calcTokenCost(TIERED_MODEL, 0, 1_000_000)).toBeCloseTo(10, 6);
+  });
+
+  test("should bill Claude Haiku 5.5 by the 100k prompt tier", () => {
+    const model = filterModelMetadata("claude-haiku-5-5", ALL_MODELS)[0];
+    // 100,000 tokens is still the lower tier. 100k input + 1M output.
+    expect(calcTokenCost(model, 100_000, 1_000_000)).toBeCloseTo(0.01 + 0.5, 6);
+    // One token past the threshold bills the whole request at the higher rate.
+    expect(calcTokenCost(model, 100_001, 1_000_000)).toBeCloseTo((100_001 * 0.5) / 1_000_000 + 2.5, 6);
+    // Cache writes count toward the prompt length and use the same tier.
+    expect(calcTokenCost(model, 0, 0, 0, { shortLife: 100_000, longLife: 0 })).toBeCloseTo(0.0125, 6);
+    expect(calcTokenCost(model, 50_000, 0, 0, { shortLife: 60_000, longLife: 0 })).toBeCloseTo(
+      (50_000 * 0.5) / 1_000_000 + (60_000 * 0.625) / 1_000_000,
+      6
+    );
+  });
+
+  test("should price routed Gemini 3.5 Flash at the Gemini 3.6 Flash promotional rate", () => {
+    const flash35 = filterModelMetadata("gemini-3.5-flash", ALL_MODELS)[0];
+    const flash36 = filterModelMetadata("gemini-3.6-flash", ALL_MODELS)[0];
+    expect(calcTokenCost(flash35, 1_000_000, 1_000_000)).toBeCloseTo(calcTokenCost(flash36, 1_000_000, 1_000_000), 6);
+    expect(calcTokenCost(flash35, 1_000_000, 0)).toBeCloseTo(0.75, 6);
   });
 });

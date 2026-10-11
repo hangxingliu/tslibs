@@ -20,13 +20,15 @@ export type ModelTokenPrice = number | ReadonlyArray<Readonly<TokenPriceRule>>;
 
 /**
  * Anthropic charges different prices for writing into the caches with different TTLs.
+ * Each side is a fixed price or a tiered price table (see {@link ModelTokenPrice}).
+ * Claude Haiku 5.5 uses the higher tier once the prompt exceeds 100,000 tokens.
  * @see https://platform.claude.com/docs/en/build-with-claude/prompt-caching#pricing
  */
 export type AnthropicCacheWritePrice = {
   /** The price (per 1M tokens) of writing into the 5-minute cache */
-  shortLife: number;
+  shortLife: ModelTokenPrice;
   /** The price (per 1M tokens) of writing into the 1-hour cache */
-  longLife: number;
+  longLife: ModelTokenPrice;
 };
 
 export enum KnownModelProvider {

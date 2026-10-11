@@ -40,12 +40,18 @@ Utilities for talking to the three mainstream LLM API standards (**Google AI**, 
   shared by all the kinds of the tokens in the same request. E.g., the output tokens of a long
   context request are billed at the long context price even if only a few tokens are generated.
 - Anthropic cache reads are usually 0.1× the input price. Claude Fable 5.1 and Claude Mythos 5.1
-  use 0.025× (`$0.25` / 1M), and Claude Opus 5.5 uses 0.05× (`$0.20` / 1M). Cache writes stay at
-  1.25× (5-minute) and 2× (1-hour).
-- The standard prices stored for `gemini-3.8-flash`, `gemini-3.7-flash` and `gemini-3.6-flash` are
-  the promotional rates valid through December 31, 2026. They double on January 1, 2027.
-- Claude Mythos 5.1 (`claude-mythos-5-1`) and Claude Mythos 5 (`claude-mythos-5`) are invitation-only
-  through Project Glasswing. Their prices and limits match Claude Fable 5.1 and Claude Fable 5.
+  use 0.025× (`$0.25` / 1M). Claude Opus 5.5 uses 0.05× (`$0.20` / 1M) and Claude Sonnet 5.5 uses
+  0.05× (`$0.10` / 1M). Cache writes stay at 1.25× (5-minute) and 2× (1-hour).
+- Claude Haiku 5.5 (`claude-haiku-5-5`) charges more once the prompt is over 100,000 tokens
+  (`$0.10` / `$0.50` below the threshold, `$0.50` / `$2.50` above, for input / output per 1M tokens).
+  The prompt length includes cache reads and cache writes, and the cache-write prices use the same tier.
+- The standard prices stored for `gemini-3.8-flash` and `gemini-3.6-flash` are the promotional rates
+  valid through December 31, 2026. They double on January 1, 2027. Requests to `gemini-3.7-flash`
+  are routed to `gemini-3.8-flash`, and requests to `gemini-3.5-flash` are routed to
+  `gemini-3.6-flash`, so those entries store the same promotional rates.
+- Claude Mythos 5.1 (`claude-mythos-5-1`) and Claude Mythos 5 (`claude-mythos-5`) are limited to
+  organizations verified through Anthropic's verification programs. Their prices and limits match
+  Claude Fable 5.1 and Claude Fable 5.
 - `filterModelMetadata` returns the prefix matches in the same order as the given metadata array,
   which is ordered from the newest model to the oldest one. So `result[0]` is the newest matched
   model instead of the one owning the longest matched prefix.
@@ -56,9 +62,11 @@ Two mutually exclusive mechanisms are supported by the models:
 
 1. **Thinking level** — a text value written into `reasoning_effort` (OpenAI), `output_config.effort`
    (Anthropic) or `thinkingConfig.thinkingLevel` (Gemini 3+). Declared by `ModelMetadata.thinkingLevels`
-   and `ModelMetadata.thinkingLevelProps`. Gemini 3.8 Flash, Gemini 3.7 Flash and Gemini 3.1 Pro
-   reject `minimal` (it is sent as `low`). `grok-4.6` and later accept `xhigh`, which the wellknown
-   level `max` maps to. Claude's `xhigh` effort has no wellknown level; `max` maps to Claude's `max`.
+   and `ModelMetadata.thinkingLevelProps`. Gemini 3.8 Flash and Gemini 3.1 Pro reject `minimal`
+   (it is sent as `low`). `gemini-3.7-flash` is routed to Gemini 3.8 Flash and uses the same levels.
+   `grok-4.5` and later accept `xhigh`, which the wellknown level `max` maps to. `grok-4.3` also
+   accepts `xhigh`, and its `off` level is sent as `none`. Claude's `xhigh` effort has no wellknown
+   level; `max` maps to Claude's `max`.
 2. **Thinking budget** — a token count written into `thinking.budget_tokens` (Anthropic) or
    `thinkingConfig.thinkingBudget` (Gemini 2). It is used only when the model doesn't accept a
    thinking level.
