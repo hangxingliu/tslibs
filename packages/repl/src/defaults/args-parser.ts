@@ -5,7 +5,7 @@
  *   ORCID:    https://orcid.org/0009-0007-6518-185X
  *   --------------------------------------------------------------------------------------   */
 import type { CommandArgs } from "../tokenizer/index.js";
-import type { CompletionResult } from "../types.js";
+import type { CompletionResult } from "../complete/types.js";
 import type { ArgsParserConfig, ParseArgsOptionDescriptor } from "./args-parser.types.js";
 import type { ParsedOptions } from "../contrib/parse-args.js";
 

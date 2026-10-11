@@ -4,9 +4,9 @@
  *   Authors:  Liu Yue <hangxingliu@gmail.com>
  *   ORCID:    https://orcid.org/0009-0007-6518-185X
  *   --------------------------------------------------------------------------------------   */
-import { readdirSync } from "fs";
-import { resolve } from "path";
-import type { CompletionResult } from "../types.js";
+import { readdirSync } from "node:fs";
+import { resolve } from "node:path";
+import type { CompletionResult } from "./types.js";
 
 export type CompletePathOptions = {
   dirOnly?: boolean;
@@ -14,12 +14,19 @@ export type CompletePathOptions = {
   recursive?: boolean;
 };
 
+/**
+ * Completes a file system path relative to `cwd` (defaults to `process.cwd()`).
+ * It reads the local file system, so it only works in Node.js/Bun.
+ * @example completePath("src/co", "/project") // => { result: ["components", "config"], matched: "co" }
+ */
 export function completePath(input?: string, cwd?: string, opts?: CompletePathOptions): Required<CompletionResult> {
   if (!cwd) cwd = process.cwd();
   if (!input) input = "";
+
   let completeParent = false;
   let matched = input;
   const result: string[] = [];
+
   const i = input.lastIndexOf("/");
   if (i >= 0) {
     matched = input.slice(i + 1);
@@ -27,6 +34,7 @@ export function completePath(input?: string, cwd?: string, opts?: CompletePathOp
   } else {
     completeParent = true;
   }
+
   let dirOnly = false;
   let dotFiles = true;
   let exact = "";
@@ -35,6 +43,7 @@ export function completePath(input?: string, cwd?: string, opts?: CompletePathOp
     if (typeof opts.dotFiles === "boolean") dotFiles = opts.dotFiles;
     if (opts.recursive === false) exact = " ";
   }
+
   const lc = matched.toLowerCase();
   try {
     const items = readdirSync(cwd, { withFileTypes: true });
@@ -47,16 +56,7 @@ export function completePath(input?: string, cwd?: string, opts?: CompletePathOp
   } catch {
     // noop
   }
+
   if (completeParent && /^\.{1,2}$/.test(matched)) result.unshift(".." + exact);
   return { result, matched };
-}
-
-export function completeKeyword(str: string, keywords: string[]): CompletionResult {
-  const result: string[] = [];
-  const lc = str.toLowerCase();
-  for (const key of keywords) {
-    if (!key.toLowerCase().startsWith(lc)) continue;
-    result.push(`${key} `);
-  }
-  return { result };
 }
