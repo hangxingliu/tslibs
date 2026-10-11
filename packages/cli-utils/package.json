@@ -42,8 +42,8 @@
   },
   "scripts": {
     "gen": "node scripts/gen-color-256.mjs --no-ui",
-    "build": "yarn gen && tsc -b tsconfig.json",
-    "build:all": "yarn gen && tsc -b tsconfig.cjs.json tsconfig.json",
+    "build": "bun run gen && tsc -b tsconfig.json",
+    "build:all": "bun run gen && tsc -b tsconfig.cjs.json tsconfig.json",
     "watch": "tsc -b tsconfig.json --watch",
     "start": "tsc -b tsconfig.json && node esm",
     "clean": "rimraf --glob cjs esm '*.tsbuildinfo'",

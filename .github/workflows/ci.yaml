@@ -1,0 +1,54 @@
+name: CI
+
+# Reference:
+# https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions
+# https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads
+# https://docs.github.com/en/actions/learn-github-actions/events-that-trigger-workflows
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    # check the trigger event in here for avoiding duplicated run
+    # because this workflow will be triggered twice when you push changes into a pull request
+    if: ${{
+      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name != 'pull_request' || github.event.action != 'synchronize'))}}
+    name: CI
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint TypeScript types
+        run: bun run build
+
+      - name: Check generated files
+        run: git diff --exit-code
+
+      - name: ESLint
+        run: bun run lint
+
+      - name: Unit tests
+        run: bun test
