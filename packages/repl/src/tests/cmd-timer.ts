@@ -3,6 +3,7 @@ import type { CommandArgs, CommandInterface, CommandMeta } from "../index.js";
 import { completeKeyword, REPL } from "../index.js";
 
 export class CommandTimer implements CommandInterface<SharedData> {
+  constructor(private readonly refreshPrompt: () => void = () => {}) {}
   private sharedData?: SharedData;
   connect(sharedData: SharedData) {
     this.sharedData = sharedData;
@@ -17,6 +18,7 @@ export class CommandTimer implements CommandInterface<SharedData> {
   private timer: any;
   private readonly onTimer = () => {
     REPL.log(`timer: ${new Date().toJSON()}`);
+    this.refreshPrompt();
   };
 
   async onCommand(cmdName: string, cmd: CommandArgs): Promise<any> {

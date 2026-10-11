@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "fs";
-import { dirname, join, resolve } from "path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 const src = "src";
 describe("version", function () {
@@ -22,14 +22,13 @@ describe("version", function () {
 
       const matchedVer = mtx[1];
       console.log(`version: "${matchedVer} ${mtx[2]}" in file "${tsFile}"`);
-      if (matchedVer !== version) if (!mtx) throw new Error(`version is incorrect in file "${tsFile}"`);
+      if (matchedVer !== version) throw new Error(`version is incorrect in file "${tsFile}"`);
     }
   });
 });
 
 function findProjectRoot() {
-  // let ptr = dirname(import.meta.dirname);
-  let ptr = dirname(__dirname);
+  let ptr = dirname(import.meta.dirname);
   const MAX_LEVEL = 3;
   for (let i = 0; i < MAX_LEVEL; i++) {
     const pkg = join(ptr, "package.json");

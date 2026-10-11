@@ -1,9 +1,7 @@
-import type { REPLServer } from "repl";
 import type { CommandMeta, SharedDataBase } from "../index.js";
 import { DefaultVarResolver } from "../index.js";
 
 export class SharedData implements SharedDataBase {
-  repl?: REPLServer | undefined;
   lastResult?: unknown;
   commandMetas: CommandMeta[] = [];
   vars = new DefaultVarResolver(new Map<string, any>([["hello", 1]]));

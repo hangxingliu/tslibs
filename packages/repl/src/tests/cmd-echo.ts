@@ -1,5 +1,6 @@
 import type { SharedData } from "./shared-data.js";
 import type { CommandInterface, CommandMeta, CommandArgs } from "../index.js";
+import { REPL } from "../index.js";
 
 export class CommandEcho implements CommandInterface<SharedData> {
   getMeta(): CommandMeta {
@@ -10,6 +11,6 @@ export class CommandEcho implements CommandInterface<SharedData> {
   }
   async onCommand(cmdName: string, cmd: CommandArgs): Promise<any> {
     const strs = cmd.getRestStr(0);
-    console.log(...strs);
+    REPL.log(...strs);
   }
 }
