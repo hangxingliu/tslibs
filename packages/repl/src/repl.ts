@@ -16,9 +16,16 @@ import {
 import { LineReader } from "./readline/index.js";
 import type { InputLineOptions } from "./readline/types.js";
 import { REPLExecutor } from "./repl-executor.js";
+import type { CompletionTuple } from "./complete/types.js";
 //
 import { CommandArgsTokenizer, type VarResolver } from "./tokenizer/types.js";
-import { CommandFlags, type CommandInterface, type REPLOptions, type SharedDataBase } from "./types.js";
+import {
+  CommandFlags,
+  type CommandContext,
+  type CommandInterface,
+  type REPLOptions,
+  type SharedDataBase,
+} from "./types.js";
 import { getDefaultHistoryFileErrorHandler } from "./defaults/error-handlers.js";
 
 const { BOLD, GREEN, RESET } = BASIC_COLORS;
@@ -73,6 +80,8 @@ export class REPL {
   private readonly executor: REPLExecutor;
   private varResolver?: VarResolver;
   private reader?: LineReader;
+  /** Whether {@link reader} has been closed (EOF, Ctrl+D, double Ctrl+C), possibly while a command is still running */
+  private readerClosed = false;
   private started = false;
 
   /**
@@ -181,12 +190,17 @@ export class REPL {
     const reader = new LineReader({
       input: this.options.input ?? process.stdin,
       output: this.options.output ?? process.stdout,
+      terminal: this.options.terminal,
       history: historyItems,
       historySize,
       completer: (line) => this.completer.complete(line),
       onInterrupt: interrupt,
     });
     this.reader = reader;
+    this.readerClosed = false;
+    reader.rl.once("close", () => {
+      this.readerClosed = true;
+    });
     // Route static loggers and `REPL.inputLine()` to this instance
     this.active();
 
@@ -236,6 +250,38 @@ export class REPL {
       exit();
     }
   };
+
+  /**
+   * Simulates a Ctrl+C keypress, e.g. to forward a process `SIGINT` to the REPL.
+   * It follows the same rules as Ctrl+C: at the prompt it clears the input (or arms/closes on empty input),
+   * while a command runs it aborts `ctx.signal` (a second call invokes `onExit`), and it cancels a pending question.
+   * It does nothing before `start()` or after the interface is closed.
+   * @example process.on("SIGINT", () => repl.interrupt());
+   */
+  interrupt() {
+    if (!this.reader || this.readerClosed) return;
+    this.reader.rl.emit("SIGINT");
+  }
+
+  /**
+   * Executes one command line without the interactive loop (e.g. for scripts or tests); `start()` is not required.
+   * Handler errors are printed and never thrown. Instance `inputLine()` is not available to the handler.
+   * @param ctx defaults to a context with a new, never-aborted signal
+   * @returns `exit: true` only when the handler returns `SYMBOL_EXIT`
+   * @example const { exit } = await repl.execute("echo hello");
+   */
+  execute(line: string, ctx?: Partial<CommandContext>): Promise<{ exit: boolean }> {
+    return this.executor.execute(line, { ...ctx, signal: ctx?.signal ?? new AbortController().signal });
+  }
+
+  /**
+   * Completes a command line the same way as pressing Tab at the prompt.
+   * @returns normalized `[candidates, matched]` tuple
+   * @example await repl.complete("he") // => [["help "], "he"]
+   */
+  complete(line: string): Promise<CompletionTuple> {
+    return this.completer.complete(line);
+  }
 
   /** Selects this instance as the target of static loggers and `REPL.inputLine()`. `start()` calls it implicitly. */
   readonly active = () => {

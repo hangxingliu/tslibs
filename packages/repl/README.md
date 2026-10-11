@@ -102,11 +102,21 @@ only its first answer belongs to that question; later lines become queued comman
 | `statusLine`      | Getter returning `string \| null \| undefined`, evaluated for each new prompt. Empty values hide the status. TTY only; CR/LF become spaces. Readline handles wrapping. |
 | `history`         | Optional `{ filePath, limit?, onError? }`; no file is written unless configured. The containing directory must already exist.                                          |
 | `onExit`          | Exit callback; defaults to `process.exit(0)`.                                                                                                                          |
-| `input`, `output` | Caller-owned streams; default `process.stdin` and `process.stdout`. TTY mode follows `output.isTTY`.                                                                   |
+| `input`, `output` | Caller-owned streams; default `process.stdin` and `process.stdout`. TTY mode follows `terminal`.                                                                       |
+| `terminal`        | Terminal (TTY) mode for line editing, completion, Ctrl+C and the status line; defaults to `output.isTTY`. Set `true` to keep it when the output is redirected.         |
 
 `repl.refreshPrompt()` updates the status and prompt while waiting for a command, preserving typed
 input and cursor. It does nothing during commands or questions. Override `buildReplPrompt()` to customize
 the command prompt. `active()` selects the instance used by static loggers and questions.
+
+`repl.interrupt()` behaves like pressing Ctrl+C (clear or close at the prompt, abort `ctx.signal` and then
+force exit while a command runs, cancel a question); it does nothing before `start()` or after closing.
+Use it to forward a process signal: `process.on("SIGINT", () => repl.interrupt())`.
+
+`repl.execute(line, ctx?)` runs one command line without starting the interactive loop and resolves with
+`{ exit }` (`true` only for `SYMBOL_EXIT`); handler errors are printed, `ctx.signal` defaults to a new
+signal and instance `inputLine()` is unavailable. `repl.complete(line)` resolves with the normalized
+`[candidates, matched]` tuple that Tab would use. Both are useful for scripting and tests.
 
 History defaults to the most recent 1000 entries. On startup oversized files are truncated, and history
 is restored for Up/Down navigation. Only accepted command lines are recorded: blank input, lines beginning
@@ -118,7 +128,8 @@ for secrets.
 
 ## Other exports
 
-- Commands: `CommandHelp` (`help`/`?`, accepts optional extra help text), `CommandExit` (`exit`) and
+- Commands: `CommandHelp` (`help`/`?`, accepts optional extra help text or `{ extraHelp, compact }`;
+  `compact: true` removes the blank lines between commands in the overview), `CommandExit` (`exit`) and
   `CommandSet` (`set`/`unset` for a `VarResolver`, e.g. `DefaultVarResolver`).
 - Arguments: `CommandArgs` and `CommandArgsTokenizer` (`simple` splits on whitespace, `unix` supports quotes),
   plus `DefaultArgsParser` for option-style arguments with completion.

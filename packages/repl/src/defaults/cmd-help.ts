@@ -15,8 +15,26 @@ const { BOLD, DIM, RESET } = BASIC_COLORS;
 
 type PrintLine = "" | ({ right: string } & ({ left: string } | { cmd: string; args: string }));
 
+export type CommandHelpOptions = {
+  /** Extra text printed after the overview of all commands */
+  extraHelp?: string;
+  /**
+   * Print the overview of all commands without blank lines between commands.
+   * Useful for REPLs with only a few simple commands.
+   * @default false
+   */
+  compact?: boolean;
+};
+
 export class CommandHelp implements CommandInterface {
-  constructor(public extraHelp?: string) {}
+  extraHelp?: string;
+  compact: boolean;
+
+  constructor(extraHelpOrOptions?: string | Readonly<CommandHelpOptions>) {
+    const options = typeof extraHelpOrOptions === "string" ? { extraHelp: extraHelpOrOptions } : extraHelpOrOptions;
+    this.extraHelp = options?.extraHelp;
+    this.compact = options?.compact === true;
+  }
 
   private sharedData?: SharedDataBase;
   connect(sharedData: SharedDataBase) {
@@ -60,7 +78,9 @@ export class CommandHelp implements CommandInterface {
     for (const meta of metas) {
       const { description, usage } = meta;
       const lines = usageToLines(usage, description);
-      allLines.push(...lines, "");
+      if (lines.length === 0) continue;
+      if (allLines.length > 0 && !this.compact) allLines.push("");
+      allLines.push(...lines);
     }
 
     for (const line of alignLines(allLines)) console.log(line);

@@ -7,9 +7,10 @@ import { join } from "node:path";
 //
 import { CommandExit } from "./defaults/cmd-exit.js";
 import { createFakeTTY } from "./readline/__tests__/fake-tty.js";
+import { REPLInputCancelledError } from "./readline/types.js";
 import { REPL } from "./repl.js";
 //
-import type { CommandContext, CommandInterface } from "./types.js";
+import { SYMBOL_EXIT, type CommandContext, type CommandInterface } from "./types.js";
 
 describe("REPL integration", () => {
   function command(onCommand: CommandInterface["onCommand"]): CommandInterface {
@@ -328,5 +329,303 @@ describe("REPL integration", () => {
       console.error = log;
       tty.input.end();
     }
+  });
+  it("uses the terminal mode with a non-TTY output when `terminal: true`", async () => {
+    const tty = createFakeTTY({ terminal: false });
+    let aborted: boolean | undefined;
+    const gate = deferred();
+    const repl = new REPL(
+      [
+        {
+          getMeta: () => ({ match: ["run"], usage: [] }),
+          onCommand: async (_name, _args, ctx) => {
+            await gate.promise;
+            aborted = ctx!.signal.aborted;
+          },
+          onCompletion: async () => ["alpha"],
+        },
+        new CommandExit(),
+      ],
+      undefined,
+      { ...tty, terminal: true, statusLine: () => "STATUS-LINE", onExit: () => {} }
+    );
+    const finished = repl.start();
+    try {
+      await tty.type("");
+      match(tty.getOutput(), /STATUS-LINE/);
+      await tty.type("run al\t");
+      match(tty.getOutput(), /run alpha/);
+      await tty.type("\r\x03");
+      gate.resolve();
+      await tty.type("");
+      strictEqual(aborted, true);
+      match(tty.getOutput(), /\^C/);
+      await tty.type("exit\r");
+      await finished;
+    } finally {
+      gate.resolve();
+      tty.input.end();
+      await finished;
+    }
+  });
+
+  it("keeps the non-terminal mode for a non-TTY output by default", async () => {
+    const tty = createFakeTTY({ terminal: false });
+    const finished = new REPL([new CommandExit()], undefined, {
+      ...tty,
+      statusLine: () => "STATUS-LINE",
+      onExit: () => {},
+    }).start();
+    tty.input.end("exit\n");
+    await finished;
+    strictEqual(tty.getOutput().includes("STATUS-LINE"), false);
+  });
+
+  describe("interrupt()", () => {
+    it("does nothing before start() or after the REPL is closed", async () => {
+      const tty = createFakeTTY();
+      let exits = 0;
+      const repl = new REPL([new CommandExit()], undefined, {
+        ...tty,
+        onExit: () => {
+          exits++;
+        },
+      });
+      repl.interrupt();
+      repl.interrupt();
+      strictEqual(tty.getOutput(), "");
+      strictEqual(exits, 0);
+
+      const finished = repl.start();
+      await tty.type("exit\r");
+      await finished;
+      strictEqual(exits, 1);
+      tty.clearOutput();
+      repl.interrupt();
+      strictEqual(tty.getOutput(), "");
+      strictEqual(exits, 1);
+    });
+
+    it("aborts the running command and returns to the prompt after the handler finishes", async () => {
+      const tty = createFakeTTY();
+      const gate = deferred();
+      const calls: string[] = [];
+      let context: CommandContext | undefined;
+      let exits = 0;
+      const repl = new REPL(
+        [
+          command(async (_name, args, ctx) => {
+            calls.push(args.getStr(0)!);
+            if (calls.length === 1) {
+              context = ctx;
+              await gate.promise;
+            }
+          }),
+          new CommandExit(),
+        ],
+        undefined,
+        {
+          ...tty,
+          onExit: () => {
+            exits++;
+          },
+        }
+      );
+      const finished = repl.start();
+      try {
+        await tty.type("run first\r");
+        ok(context);
+        repl.interrupt();
+        strictEqual(context.signal.aborted, true);
+        match(tty.getOutput(), /\^C/);
+        gate.resolve();
+        await tty.type("run second\r");
+        deepStrictEqual(calls, ["first", "second"]);
+        strictEqual(exits, 0);
+        await tty.type("exit\r");
+        await finished;
+        strictEqual(exits, 1);
+      } finally {
+        gate.resolve();
+        tty.input.end();
+        await finished;
+      }
+    });
+
+    it("invokes onExit on the second call while the command is still running", async () => {
+      const tty = createFakeTTY();
+      const gate = deferred();
+      let context: CommandContext | undefined;
+      let exits = 0;
+      const repl = new REPL(
+        [
+          command(async (_name, _args, ctx) => {
+            context = ctx;
+            await gate.promise;
+          }),
+        ],
+        undefined,
+        {
+          ...tty,
+          onExit: () => {
+            exits++;
+          },
+        }
+      );
+      const finished = repl.start();
+      try {
+        await tty.type("run\r");
+        ok(context);
+        repl.interrupt();
+        strictEqual(exits, 0);
+        repl.interrupt();
+        await finished;
+        strictEqual(context.signal.aborted, true);
+        strictEqual(exits, 1);
+      } finally {
+        gate.resolve();
+        tty.input.end();
+        await finished;
+      }
+    });
+
+    it("clears the input at the prompt and closes on two consecutive calls with empty input", async () => {
+      const tty = createFakeTTY();
+      let exits = 0;
+      const calls: string[] = [];
+      const repl = new REPL(
+        [
+          command(async (_name, args) => {
+            calls.push(args.getStr(0)!);
+          }),
+        ],
+        undefined,
+        {
+          ...tty,
+          onExit: () => {
+            exits++;
+          },
+        }
+      );
+      const finished = repl.start();
+      try {
+        await tty.type("run partial");
+        repl.interrupt();
+        await tty.type("run kept\r");
+        deepStrictEqual(calls, ["kept"]);
+        repl.interrupt();
+        match(tty.getOutput(), /To exit, press Ctrl\+C again or Ctrl\+D/);
+        strictEqual(exits, 0);
+        repl.interrupt();
+        await finished;
+        strictEqual(exits, 1);
+      } finally {
+        tty.input.end();
+        await finished;
+      }
+    });
+
+    it("cancels a pending question with REPLInputCancelledError", async () => {
+      const tty = createFakeTTY();
+      let error: unknown;
+      const repl = new REPL(
+        [
+          command(async () => {
+            try {
+              await repl.inputLine({ prompt: "Name: " });
+            } catch (err) {
+              error = err;
+            }
+          }),
+          new CommandExit(),
+        ],
+        undefined,
+        { ...tty, onExit: () => {} }
+      );
+      const finished = repl.start();
+      try {
+        await tty.type("run\r");
+        match(tty.getOutput(), /Name: /);
+        repl.interrupt();
+        await tty.type("");
+        ok(error instanceof REPLInputCancelledError);
+        await tty.type("exit\r");
+        await finished;
+      } finally {
+        tty.input.end();
+        await finished;
+      }
+    });
+  });
+
+  describe("execute() and complete()", () => {
+    it("executes commands without starting the REPL and passes the signal through", async () => {
+      const calls: Array<{ name: string; args: string[]; signal: AbortSignal }> = [];
+      const exitCommand: CommandInterface = {
+        getMeta: () => ({ match: ["bye"], usage: [] }),
+        onCommand: async () => SYMBOL_EXIT,
+      };
+      let exits = 0;
+      const repl = new REPL(
+        [
+          command(async (name, args, ctx) => {
+            calls.push({ name, args: args.getRestStr(0), signal: ctx!.signal });
+          }),
+          exitCommand,
+        ],
+        undefined,
+        {
+          onExit: () => {
+            exits++;
+          },
+        }
+      );
+
+      deepStrictEqual(await repl.execute("run a b"), { exit: false });
+      strictEqual(calls.length, 1);
+      deepStrictEqual(calls[0].args, ["a", "b"]);
+      strictEqual(calls[0].signal.aborted, false);
+
+      const controller = new AbortController();
+      controller.abort();
+      deepStrictEqual(await repl.execute("run c", { signal: controller.signal }), { exit: false });
+      strictEqual(calls[1].signal, controller.signal);
+
+      deepStrictEqual(await repl.execute("bye"), { exit: true });
+      strictEqual(exits, 0);
+      await rejects(repl.inputLine(), /only be called while a command is running/);
+    });
+
+    it("prints handler errors instead of throwing them", async () => {
+      const errors: string[] = [];
+      const error = console.error;
+      console.error = (...args) => {
+        errors.push(args.join(" "));
+      };
+      try {
+        const repl = new REPL([
+          command(async () => {
+            throw new Error("boom");
+          }),
+        ]);
+        deepStrictEqual(await repl.execute("run"), { exit: false });
+        ok(errors.some((line) => line.includes("boom")));
+      } finally {
+        console.error = error;
+      }
+    });
+
+    it("returns normalized completion tuples", async () => {
+      const repl = new REPL([
+        {
+          getMeta: () => ({ match: ["run", "reset"], usage: [] }),
+          onCommand: async () => {},
+          onCompletion: async () => ["alpha", "beta"],
+        },
+      ]);
+      deepStrictEqual(await repl.complete("ru"), [["run "], "ru"]);
+      deepStrictEqual(await repl.complete("r"), [["run ", "reset "], "r"]);
+      deepStrictEqual(await repl.complete("run al"), [["alpha", "beta"], "al"]);
+    });
   });
 });

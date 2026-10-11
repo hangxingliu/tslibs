@@ -103,8 +103,14 @@ export type REPLOptions = {
   /** Caller-owned input stream. Defaults to `process.stdin`. */
   input?: NodeJS.ReadableStream;
 
-  /** Caller-owned output stream. Defaults to `process.stdout`; TTY mode follows `output.isTTY`. */
+  /** Caller-owned output stream. Defaults to `process.stdout`; TTY mode follows {@link terminal}. */
   output?: TerminalWritableStream;
+
+  /**
+   * Whether to run in terminal (TTY) mode: line editing, completion, Ctrl+C handling and the status line.
+   * Defaults to `output.isTTY`. Set it to `true` to keep the terminal mode when the output is redirected.
+   */
+  terminal?: boolean;
 };
 
 /**

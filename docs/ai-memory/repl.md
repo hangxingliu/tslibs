@@ -22,7 +22,7 @@ not a unit-test directory; it is excluded from the published package together wi
 | `readline/render-utils.ts`                | Clearing the full rendered input, including wrapped multiline prompts                                      |
 | `readline/pausable-output-stream.ts`      | `PausableOutputStream`: output proxy, TTY dimensions, resize forwarding and password masking               |
 | `readline/history-file.ts`                | Validated history limits, synchronous loading/truncation/appending, explicit error callbacks               |
-| `defaults/cmd-help.ts`, `cmd-exit.ts`     | `CommandHelp` (`CommandFlags.help`) and opt-in `CommandExit` returning `SYMBOL_EXIT`                       |
+| `defaults/cmd-help.ts`, `cmd-exit.ts`     | `CommandHelp` (`CommandFlags.help`, `extraHelp`/`compact`), opt-in `CommandExit` returning `SYMBOL_EXIT`   |
 | `defaults/cmd-set.ts`, `vars.ts`          | `CommandSet` (`set`/`unset`) and the `DefaultVarResolver` variable store                                   |
 | `defaults/args-parser*.ts`                | `DefaultArgsParser` for option-style command arguments                                                     |
 | `defaults/error-handlers.ts`              | Default history error handler: warns once via `REPL.warn`                                                  |

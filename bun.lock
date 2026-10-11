@@ -102,7 +102,7 @@
     },
     "packages/repl": {
       "name": "@hangxingliu/repl",
-      "version": "4.0.0",
+      "version": "4.1.0",
       "devDependencies": {
         "@types/bun": "^1.4.0",
         "eslint": "^10.12.0",
