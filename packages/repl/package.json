@@ -7,7 +7,10 @@
   "types": "esm/index.d.ts",
   "files": [
     "src",
-    "esm"
+    "esm",
+    "!**/*.spec.{ts,js}",
+    "!**/__tests__",
+    "!{src,esm}/tests"
   ],
   "exports": {
     "./esm/*.js": {
@@ -33,10 +36,12 @@
     "test": "bun test"
   },
   "devDependencies": {
-    "@types/mocha": "^10.0.10",
     "@types/node": "^22.19.7",
     "eslint": "^10.12.0",
     "rimraf": "^6.1.2",
     "typescript": "^7.0.2"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
