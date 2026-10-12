@@ -1,7 +1,6 @@
 /**
  * Readline-based command REPL utilities for Node.js and Bun
  *
- * @version 4.0.0 (2026-10-12)
  * @author hangxingliu
  */
 export * from "./complete/command-completer.js";
