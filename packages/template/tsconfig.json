@@ -12,7 +12,11 @@
     "incremental": true,
     "rootDir": "./src",
     "outDir": "esm",
-    "strict": true
+    "strict": true,
+    "types": [
+      "node",
+      "bun"
+    ]
   },
   "exclude": [
     "src/**/*.cts"

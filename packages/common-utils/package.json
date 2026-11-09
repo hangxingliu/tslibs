@@ -42,9 +42,9 @@
     "@types/node": "^25.6.0",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
-    "eslint": "^9.39.2",
+    "eslint": "^10.14.0",
     "rimraf": "^6.1.2",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   },
   "peerDependencies": {
     "ajv": "^8",

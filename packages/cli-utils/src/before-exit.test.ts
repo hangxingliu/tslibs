@@ -11,6 +11,7 @@ async function main() {
 
   for (let i = 0; i < 2; i++) {
     console.log("timeout: START");
+    // eslint-disable-next-line no-useless-assignment
     const ok = await setTimeout(5000, true);
     throw "???";
     console.log(`timeout: DONE (${ok})`);

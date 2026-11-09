@@ -38,7 +38,7 @@ export async function formatTypeScriptCode(
     code = await prettier.format(code, prettierOpts);
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to format the source code: ${errMsg}`);
+    throw new Error(`Failed to format the source code: ${errMsg}`, { cause: error });
   }
 
   try {
@@ -48,7 +48,7 @@ export async function formatTypeScriptCode(
     }
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to generate the file "${targetFile}": ${errMsg}`);
+    throw new Error(`Failed to generate the file "${targetFile}": ${errMsg}`, { cause: error });
   }
 
   return { code, prettierOpts };

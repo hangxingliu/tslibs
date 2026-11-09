@@ -36,9 +36,9 @@
     "lint": "eslint src"
   },
   "devDependencies": {
-    "@types/node": "^22.19.7",
-    "eslint": "^9.39.2",
+    "@types/bun": "^1.4.0",
+    "eslint": "^10.14.0",
     "rimraf": "^6.1.2",
-    "typescript": "^5.9.3"
+    "typescript": "^7.0.2"
   }
 }
