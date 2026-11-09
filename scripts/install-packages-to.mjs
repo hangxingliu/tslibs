@@ -9,7 +9,7 @@ import * as path from "node:path";
 import * as util from "node:util";
 import { existsSync } from "node:fs";
 
-const VERSION = "2026-02-01";
+const VERSION = "2026-11-09";
 const BIN_NAME = path.basename(import.meta.filename);
 const USAGE = [
   "",
@@ -21,7 +21,6 @@ const USAGE = [
   "       --src <path-to-lib-dir>   The path of my typescript library directory (env: LOCAL_TS_LIBS_DIR)",
   "       --no-env                  Disable loading .env file",
   "       --org <org-name>          The org name for target packages",
-  "       --cjs                     Force to set type to 'commonjs'",
   "       --esm                     Force to set type to 'module'",
   "",
   "",
@@ -160,9 +159,9 @@ async function copyPackage(pkgSrc, targetDir) {
 /**
  * @param {string} targetDir
  * @param {string|null} namespace
- * @param {"module"|"commonjs"|null} forceModuleType
+ * @param {boolean} forceEsm
  */
-async function updatePackageJSON(targetDir, namespace, forceModuleType) {
+async function updatePackageJSON(targetDir, namespace, forceEsm) {
   const pkgJSONFile = path.resolve(targetDir, "package.json");
   const pkgJSON = JSON.parse(await fs.readFile(pkgJSONFile, "utf-8"));
   if (typeof namespace === "string") {
@@ -171,22 +170,13 @@ async function updatePackageJSON(targetDir, namespace, forceModuleType) {
   }
   delete pkgJSON.scripts;
   delete pkgJSON.devDependencies;
-  if (forceModuleType) {
-    pkgJSON.type = forceModuleType;
-    let deleteExportKey = "require";
-    let deletePkgKey = "main";
-    /** @type {[string, string]} */
-    let typesRewrite = ["cjs", "esm"];
-    if (forceModuleType === "commonjs") {
-      deletePkgKey = "module";
-      deleteExportKey = "import";
-      typesRewrite = ["esm", "cjs"];
-    }
+  if (forceEsm) {
+    pkgJSON.type = "module";
+    delete pkgJSON.main;
     const handleExportsObject = (/** @type {any} */ it) => {
-      delete it[deleteExportKey];
-      if (typeof it.types === "string") it.types = it.types.replace(typesRewrite[0], typesRewrite[1]);
+      delete it.require;
+      if (typeof it.types === "string") it.types = it.types.replace("cjs", "esm");
     };
-    delete pkgJSON[deletePkgKey];
     if (pkgJSON.exports && typeof pkgJSON.exports === "object") {
       for (const item of Object.values(pkgJSON.exports)) {
         if (Array.isArray(item)) {
@@ -195,7 +185,6 @@ async function updatePackageJSON(targetDir, namespace, forceModuleType) {
           handleExportsObject(item);
         }
       }
-      //
     }
   }
 
@@ -204,16 +193,17 @@ async function updatePackageJSON(targetDir, namespace, forceModuleType) {
 
 /**
  * @param {string} targetDir
- * @param {"module"|"commonjs"|null} forceModuleType
+ * @param {boolean} forceEsm
  */
-async function updateGitIgnore(targetDir, forceModuleType) {
+async function updateGitIgnore(targetDir, forceEsm) {
   const gitIgnoreFile = path.resolve(targetDir, ".gitignore");
   if (!existsSync(gitIgnoreFile)) return;
   const SEP = "\n";
   const gitIgnore = (await fs.readFile(gitIgnoreFile, "utf-8")).split(SEP);
+  // Drop ignored build directories so the copied package can commit its output.
+  // `--esm` keeps a leftover `cjs` ignore line and only un-ignores `esm`.
   let filter = /^(?:cjs|esm)\s*$/;
-  if (forceModuleType === "commonjs") filter = /^(?:cjs)\s*$/;
-  else if (forceModuleType === "module") filter = /^(?:esm)\s*$/;
+  if (forceEsm) filter = /^(?:esm)\s*$/;
 
   let removed = false;
   for (let i = 0; i < gitIgnore.length; i++) {
@@ -235,7 +225,6 @@ async function main() {
       "no-env": { type: "boolean" },
       src: { type: "string", multiple: false },
       org: { type: "string", multiple: false },
-      cjs: { type: "boolean" },
       esm: { type: "boolean" },
     },
     allowPositionals: true,
@@ -244,7 +233,7 @@ async function main() {
   if (options.version) return showVersion();
   if (options.help) return showUsage();
 
-  const forceModuleType = options.esm === true ? "module" : options.cjs === true ? "commonjs" : null;
+  const forceEsm = options.esm === true;
   const pkgOrgName = options.org || null;
 
   const [targetDir, ..._inputPkgNames] = _args;
@@ -307,8 +296,8 @@ async function main() {
 
     await copyCommonProjectFiles(projectSourceDir, pkgTarget);
     await copyPackage(pkgSrc, pkgTarget);
-    await updatePackageJSON(pkgTarget, pkgOrgName, forceModuleType);
-    await updateGitIgnore(pkgTarget, forceModuleType);
+    await updatePackageJSON(pkgTarget, pkgOrgName, forceEsm);
+    await updateGitIgnore(pkgTarget, forceEsm);
   }
 }
 

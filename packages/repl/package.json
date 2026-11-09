@@ -31,7 +31,7 @@
     "build:all": "tsc -b tsconfig.json",
     "watch": "tsc -b tsconfig.json --watch",
     "start": "tsc -b tsconfig.json && node esm/tests/index.js",
-    "clean": "rimraf --glob cjs esm '*.tsbuildinfo'",
+    "clean": "rimraf --glob esm '*.tsbuildinfo'",
     "lint": "eslint src",
     "test": "bun test"
   },

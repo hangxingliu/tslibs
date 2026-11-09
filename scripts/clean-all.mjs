@@ -5,7 +5,6 @@ import { resolve } from "node:path";
 import { rimraf } from "rimraf";
 
 const patterns = [
-  "packages/*/cjs",
   "packages/*/esm",
   "packages/*/*.tsbuildinfo",
   "packages/*/.dts",

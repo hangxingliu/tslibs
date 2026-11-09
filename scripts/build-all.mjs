@@ -22,9 +22,7 @@ execSync(
   [
     ...cmdBase,
     ...muxProject("packages/cli-utils", "es6", "src", "esm"),
-    ...muxProject("packages/cli-utils", "commonjs", "src", "cjs"),
     ...muxProject("packages/common-utils", "es6", "src", "esm"),
-    ...muxProject("packages/common-utils", "commonjs", "src", "cjs"),
     ...process.argv.slice(2),
   ],
   projectDir

@@ -7,7 +7,6 @@ import { copyFileSync } from "fs";
 
 const projectDir = resolve(import.meta.dirname, "..");
 const files = [
-  resolve(projectDir, "packages/template/tsconfig.cjs.json"),
   resolve(projectDir, "packages/template/tsconfig.json"),
   resolve(projectDir, "packages/template/eslint.config.mjs"),
   resolve(projectDir, "packages/template/.gitignore"),
