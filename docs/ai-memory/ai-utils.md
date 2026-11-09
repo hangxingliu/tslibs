@@ -3,16 +3,18 @@
 Utilities for talking to the three mainstream LLM API standards (**Google AI**, **Anthropic** and
 **OpenAI**) through one shared abstraction.
 
+Model catalogs, token prices, `estimateTokensV1` and `calcThinkingBudget` come from
+[`@hangxingliu/ai-model-metadata`](./ai-model-metadata.md). This package depends on that package at runtime.
+
 ## Layout
 
 | Path | Responsibility |
 | ---- | -------------- |
 | `src/types.ts` | Aliases of the request/tool types of the three SDKs |
-| `src/model-metadata/` | Static metadata (prices, limits and thinking capabilities) of the known models. The active catalogs are `google.ts`, `xai.ts` and `anthropic.ts`, newest model first |
 | `src/messages-builder.ts` | Builds the message list of the three standards from the same conversation |
 | `src/chat-param-builder.ts` | Builds the complete chat completion payloads of the three standards |
-| `src/thinking-level.ts` | Maps the wellknown thinking levels into the provider specific parameters |
-| `src/estimate-tokens/` | Rough offline token estimation (no tokenizer is downloaded) |
+| `src/thinking-level.ts` | Maps the wellknown thinking levels into the provider specific parameters. Numeric budgets are calculated by `calcThinkingBudget` from `@hangxingliu/ai-model-metadata` |
+| `src/estimate-tokens/` | Rough offline token estimation of provider message shapes. The shared heuristic `estimateTokensV1` comes from `@hangxingliu/ai-model-metadata` |
 | `src/call-tools/` | Executes the tool/function calls contained in a response |
 | `src/tools.ts`, `src/transforms.ts` | Small converters shared by the modules above |
 | `src/usage.ts` | Normalizes the token usage of the three standards and calculates the cost |
@@ -34,27 +36,8 @@ Utilities for talking to the three mainstream LLM API standards (**Google AI**, 
 
 ### Prices
 
-- `ModelTokenPrice` is either a fixed price per 1M tokens, or a tiered price table. Each rule of the
-  table takes effect when the token count is **greater than** its `gt` field.
-- The tier is decided by the **size of the whole prompt** (input + cache creation tokens), and it is
-  shared by all the kinds of the tokens in the same request. E.g., the output tokens of a long
-  context request are billed at the long context price even if only a few tokens are generated.
-- Anthropic cache reads are usually 0.1× the input price. Claude Fable 5.1 and Claude Mythos 5.1
-  use 0.025× (`$0.25` / 1M). Claude Opus 5.5 uses 0.05× (`$0.20` / 1M) and Claude Sonnet 5.5 uses
-  0.05× (`$0.10` / 1M). Cache writes stay at 1.25× (5-minute) and 2× (1-hour).
-- Claude Haiku 5.5 (`claude-haiku-5-5`) charges more once the prompt is over 100,000 tokens
-  (`$0.10` / `$0.50` below the threshold, `$0.50` / `$2.50` above, for input / output per 1M tokens).
-  The prompt length includes cache reads and cache writes, and the cache-write prices use the same tier.
-- The standard prices stored for `gemini-3.8-flash` and `gemini-3.6-flash` are the promotional rates
-  valid through December 31, 2026. They double on January 1, 2027. Requests to `gemini-3.7-flash`
-  are routed to `gemini-3.8-flash`, and requests to `gemini-3.5-flash` are routed to
-  `gemini-3.6-flash`, so those entries store the same promotional rates.
-- Claude Mythos 5.1 (`claude-mythos-5-1`) and Claude Mythos 5 (`claude-mythos-5`) are limited to
-  organizations verified through Anthropic's verification programs. Their prices and limits match
-  Claude Fable 5.1 and Claude Fable 5.
-- `filterModelMetadata` returns the prefix matches in the same order as the given metadata array,
-  which is ordered from the newest model to the oldest one. So `result[0]` is the newest matched
-  model instead of the one owning the longest matched prefix.
+Price tables and `calcTokenCost` live in [`@hangxingliu/ai-model-metadata`](./ai-model-metadata.md).
+`Usage.getCost` delegates to that function. Keep the price conventions documented there.
 
 ### Thinking / reasoning
 
@@ -69,11 +52,9 @@ Two mutually exclusive mechanisms are supported by the models:
    level; `max` maps to Claude's `max`.
 2. **Thinking budget** — a token count written into `thinking.budget_tokens` (Anthropic) or
    `thinkingConfig.thinkingBudget` (Gemini 2). It is used only when the model doesn't accept a
-   thinking level.
-
-The resolved budget must always be **less than the max output tokens** of the request, and it must
-stay inside `ModelMetadata.thinkingBudgets` (or `[1024, 32768]` when it is absent). `-1` means the
-dynamic budget, and it is accepted by Google AI only.
+   thinking level. The number is produced by `calcThinkingBudget` from
+   [`@hangxingliu/ai-model-metadata`](./ai-model-metadata.md). That document owns the budget range
+   and the `-1` dynamic-budget convention.
 
 ### Messages
 
@@ -100,6 +81,10 @@ chain walk before `Object.prototype` / `Function.prototype` and rejects the name
 # at the directory of this package
 bun test src
 bun run build      # ESM + type checking
-bun run build:all  # CJS + ESM
 bun run lint
 ```
+
+`@hangxingliu/ai-utils` 2.0.0 is ESM only. It does not emit a `cjs/` build.
+`require()` can load it on Node.js 22.12 or newer. The package does not use top-level await.
+`@hangxingliu/common-utils` 3.0.0 and `@hangxingliu/cli-utils` 7.0.0 are ESM only as well.
+See [module-format.md](./module-format.md).
