@@ -6,7 +6,7 @@
  *   --------------------------------------------------------------------------------------   */
 import type { Content, Part } from "@google/genai";
 
-import { estimateTokensV1 } from "./base.js";
+import { estimateTokensV1 } from "@hangxingliu/ai-model-metadata";
 import { messageToGoogleAIContentsArray } from "../transforms.js";
 
 /**

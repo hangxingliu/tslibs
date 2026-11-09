@@ -13,12 +13,12 @@ import type {
 } from "openai/resources";
 import type { ChatParams } from "./types.js";
 import type { MessagesBuilder } from "./messages-builder.js";
-import type { WellknownThinkingLevel } from "./model-metadata/types.js";
-import { type ModelMetadata } from "./model-metadata/types.js";
+import type { ModelMetadata, WellknownThinkingLevel } from "@hangxingliu/ai-model-metadata";
+import { calcThinkingBudget } from "@hangxingliu/ai-model-metadata";
 import { openAIToolsToAnthropicAITools, openAIToolsToGoogleAITools } from "./tools.js";
 import { FunctionCallingConfigMode } from "@google/genai";
 import { estimateOpenAIMessageTokens } from "./estimate-tokens/openai.js";
-import { calcThinkingBudget, setReasoningEffortForOpenAI, setThinkingLevelForGoogleAI } from "./thinking-level.js";
+import { setReasoningEffortForOpenAI, setThinkingLevelForGoogleAI } from "./thinking-level.js";
 
 export type ChatParamsBuilderProvider = "google" | "openai" | "anthropic";
 

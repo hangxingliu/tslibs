@@ -1,7 +1,7 @@
 import { expect, test, describe } from "bun:test";
 import { calcTokenCost, filterModelMetadata } from "./utils.js";
 import { KnownModelProvider, type ModelMetadata } from "./types.js";
-import { ALL_MODELS } from "./index.js";
+import { ALL_MODELS } from "./all-models.js";
 
 const TIERED_MODEL = {
   provider: KnownModelProvider.XAI,
@@ -15,6 +15,19 @@ const TIERED_MODEL = {
   cost1MCachedTokens: 1,
   cost1MCachedTokensWrite: { shortLife: 20, longLife: 40 },
 } as const satisfies ModelMetadata;
+
+describe("ALL_MODELS", () => {
+  test("should not contain duplicate names", () => {
+    const names = ALL_MODELS.map((model) => model.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  test("should store every prefix in lowercase", () => {
+    for (const model of ALL_MODELS) {
+      for (const prefix of model.prefixes) expect(prefix === prefix.toLowerCase()).toBe(true);
+    }
+  });
+});
 
 describe("filterModelMetadata", () => {
   test("should return the exact match only", () => {
@@ -41,7 +54,7 @@ describe("filterModelMetadata", () => {
       { ...TIERED_MODEL, name: "test-model-new", prefixes: ["test-model"] },
       { ...TIERED_MODEL, name: "test-model-old", prefixes: ["test-model-2026"] },
     ] satisfies ModelMetadata[];
-    const result = filterModelMetadata("test-model-2026-01-01", models);
+    const result = filterModelMetadata<ModelMetadata>("test-model-2026-01-01", models);
     expect(result.map((it) => it.name)).toEqual(["test-model-new", "test-model-old"]);
   });
 

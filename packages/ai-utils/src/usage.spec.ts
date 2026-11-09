@@ -1,7 +1,6 @@
 import { expect, test, describe } from "bun:test";
 import { Usage } from "./usage.js";
-import { filterModelMetadata } from "./model-metadata/utils.js";
-import { ALL_MODELS } from "./model-metadata/index.js";
+import { ALL_MODELS, filterModelMetadata } from "@hangxingliu/ai-model-metadata";
 
 describe("Usage.fromAnthropic", () => {
   test("should sum up the cache read tokens into the total input tokens", () => {

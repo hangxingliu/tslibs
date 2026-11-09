@@ -4,7 +4,7 @@
  *   Authors:  Liu Yue <hangxingliu@gmail.com>
  *   ORCID:    https://orcid.org/0009-0007-6518-185X
  *   --------------------------------------------------------------------------------------   */
-import { estimateTokensV1 } from "./base.js";
+import { estimateTokensV1 } from "@hangxingliu/ai-model-metadata";
 import type { MessageParam, TextBlockParam } from "@anthropic-ai/sdk/resources";
 import type { ChatCompletionMessageParam } from "openai/resources";
 

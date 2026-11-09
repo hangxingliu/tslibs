@@ -8,8 +8,8 @@ import type { ReadonlyDeep } from "type-fest";
 import type { OpenAI } from "openai";
 import type { GenerateContentResponseUsageMetadata } from "@google/genai";
 import type { Usage as AnthropicUsage } from "@anthropic-ai/sdk/resources/messages";
-import type { ModelMetadata } from "./model-metadata/types.js";
-import { calcTokenCost } from "./model-metadata/utils.js";
+import type { ModelMetadata } from "@hangxingliu/ai-model-metadata";
+import { calcTokenCost } from "@hangxingliu/ai-model-metadata";
 
 /**
  * A provider-independent representation of the token usage of one request.

@@ -4,7 +4,6 @@
  *   Authors:  Liu Yue <hangxingliu@gmail.com>
  *   ORCID:    https://orcid.org/0009-0007-6518-185X
  *   --------------------------------------------------------------------------------------   */
-import type { ReadonlyDeep } from "type-fest";
 import type { AnthropicCacheWritePrice, ModelMetadata, ModelTokenPrice } from "./types.js";
 
 const ONE_MILLION_TOKENS = 1_000_000;
@@ -24,10 +23,10 @@ const ONE_MILLION_TOKENS = 1_000_000;
  */
 export function filterModelMetadata<Metadata extends ModelMetadata = ModelMetadata>(
   modelName: string,
-  metadata: ReadonlyArray<ReadonlyDeep<Metadata>>
-): Array<ReadonlyDeep<Metadata>> {
+  metadata: ReadonlyArray<Readonly<Metadata>>
+): Array<Readonly<Metadata>> {
   modelName = modelName.toLowerCase().replace(/^models\//, "") as Lowercase<string>;
-  const matched: Array<ReadonlyDeep<Metadata>> = [];
+  const matched: Array<Readonly<Metadata>> = [];
   for (const item of metadata) {
     if (item.name === modelName) return [item];
     if (item.prefixes.some((prefix) => modelName.startsWith(prefix))) matched.push(item);
@@ -95,7 +94,7 @@ function _calcCacheWriteCost(
  * @param createdCacheTokens The tokens written into the prompt cache
  */
 export function calcTokenCost(
-  metadata: ReadonlyDeep<ModelMetadata>,
+  metadata: Readonly<ModelMetadata>,
   totalInputTokens: number,
   outputTokens: number,
   cachedInputTokens: number = 0,

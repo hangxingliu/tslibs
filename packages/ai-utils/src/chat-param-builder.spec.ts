@@ -1,7 +1,7 @@
 import { expect, test, describe } from "bun:test";
 import { ChatParamsBuilder } from "./chat-param-builder.js";
 import { MessagesBuilder } from "./messages-builder.js";
-import { KnownModelProvider, type ModelMetadata } from "./model-metadata/types.js";
+import { KnownModelProvider, type ModelMetadata } from "@hangxingliu/ai-model-metadata";
 
 const ANTHROPIC_MODEL: ModelMetadata = {
   provider: KnownModelProvider.ANTHROPIC,
